@@ -37,21 +37,29 @@ class Gmail(object):
     CREDENTIALS_FILE = 'gmail-token.json'
 
     def __init__(self):
+        try:
+            # The file gmail-token.json stores the user's access and refresh
+            # tokens, and is created automatically when the authorization flow
+            # completes for the first time.
+            store = file.Storage(self.CREDENTIALS_FILE)
+            creds = store.get()
 
-        # The file gmail-token.json stores the user's access and refresh
-        # tokens, and is created automatically when the authorization flow
-        # completes for the first time.
-        store = file.Storage(self.CREDENTIALS_FILE)
-        creds = store.get()
+            if not creds or creds.invalid:
 
-        if not creds or creds.invalid:
+                # Will ask you to authenticate an account in your browser.
+                flow = client.flow_from_clientsecrets(self.CLIENT_SECRETS_FILE,
+                                                      self.SCOPES)
+                creds = tools.run_flow(flow, store)
 
-            # Will ask you to authenticate an account in your browser.
-            flow = client.flow_from_clientsecrets(self.CLIENT_SECRETS_FILE,
-                                                  self.SCOPES)
-            creds = tools.run_flow(flow, store)
+            self.service = build('gmail', 'v1', http=creds.authorize(Http()))
 
-        self.service = build('gmail', 'v1', http=creds.authorize(Http()))
+        except oauth2client.clientsecrets.InvalidClientSecretsError:
+            raise Exception("Your 'client_secrets.json' file is nonexistent. "
+                            "Make sure the file is in the root directory of "
+                            "your application. If you don't have a client "
+                            "secrets file, go to https://developers.google.com"
+                            "/gmail/api/quickstart/python, and follow the "
+                            "instructions listed there.")
 
     def send_message(self, sender, to, subject, msg_html, msg_plain, cc=None,
                      bcc=None, attachments=None, signature=True):
