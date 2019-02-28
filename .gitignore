@@ -112,3 +112,8 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+client_secrets.json
+gmail-token.json
+test.py
+
