@@ -424,8 +424,8 @@ class Gmail(object):
             msg_html (str): The HTML message of the email.
             msg_plain (str): The plain text alternate message of the email (for
                              slow or old browsers).
-            cc (list): The list of email addresses to be Cc'd.
-            bcc (list): The list of email addresses to be Bcc'd
+            cc (List[str]): The list of email addresses to be Cc'd.
+            bcc (List[str]): The list of email addresses to be Bcc'd
             signature (bool): Whether the account signature should be added to
                               the message.
 
