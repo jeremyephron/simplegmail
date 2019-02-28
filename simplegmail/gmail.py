@@ -21,6 +21,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from httplib2 import Http
 from oauth2client import client, file, tools
+from oauth2client.clientsecrets import InvalidClientSecretsError
 
 from simplegmail import labels
 
@@ -53,7 +54,7 @@ class Gmail(object):
 
             self.service = build('gmail', 'v1', http=creds.authorize(Http()))
 
-        except oauth2client.clientsecrets.InvalidClientSecretsError:
+        except InvalidClientSecretsError:
             raise Exception("Your 'client_secrets.json' file is nonexistent. "
                             "Make sure the file is in the root directory of "
                             "your application. If you don't have a client "
