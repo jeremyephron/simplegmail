@@ -55,12 +55,13 @@ class Gmail(object):
             self.service = build('gmail', 'v1', http=creds.authorize(Http()))
 
         except InvalidClientSecretsError:
-            raise Exception("Your 'client_secrets.json' file is nonexistent. "
-                            "Make sure the file is in the root directory of "
-                            "your application. If you don't have a client "
-                            "secrets file, go to https://developers.google.com"
-                            "/gmail/api/quickstart/python, and follow the "
-                            "instructions listed there.")
+            raise FileNotFoundError(
+                "Your 'client_secrets.json' file is nonexistent. Make sure "
+                "the file is in the root directory of your application. If "
+                "you don't have a client secrets file, go to https://"
+                "developers.google.com/gmail/api/quickstart/python, and "
+                "follow the instructions listed there."
+            )
 
     def send_message(self, sender, to, subject, msg_html, msg_plain, cc=None,
                      bcc=None, attachments=None, signature=True):
