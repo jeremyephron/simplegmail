@@ -1,12 +1,21 @@
 # simple-gmail
 
-A simple Gmail API client in Python.
+A simple Gmail API client in Python for applications.
 
 Current Supported Behavior:
 * Sending html messages
 * Sending messages with attachments
 * Sending messages with your Gmail account signature
 * Retrieving messages with the full suite of Gmail's search capabilities
+
+## Getting Started
+The only setup required is to download a "client secrets" file from Google that will allow your applications to do its thing.
+
+Follow the instructions here: https://developers.google.com/gmail/api/quickstart/python.
+
+Name the file you download "client_secrets.json" and place it in the root directory of your application.
+
+You are now good to go!
 
 ## Usage
 ### Send a simple message:
