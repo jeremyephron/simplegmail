@@ -67,7 +67,7 @@ gmail = Gmail()  # will open a browser window to ask you to log in and authentic
 messages = gmail.get_unread_inbox()
 
 # Starred messages
-messages = gmail.get_starred_messages
+messages = gmail.get_starred_messages()
 
 # ...and many more easy to use functions...
 
