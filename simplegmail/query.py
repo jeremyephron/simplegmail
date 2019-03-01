@@ -476,7 +476,6 @@ def _near_words(first, second, distance, exact=False):
     Returns:
         The query string.
 
-
     """
 
     query = f"{first} AROUND {distance} {second}"
