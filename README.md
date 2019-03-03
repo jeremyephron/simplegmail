@@ -72,7 +72,7 @@ messages = gmail.get_starred_messages()
 # ...and many more easy to use functions...
 
 # Print them out!
-for each message in messages:
+for message in messages:
     print("To: " + message['To'])
     print("From: " + message['From'])
     print("Subject: " + message['Subject'])
