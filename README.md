@@ -15,6 +15,8 @@ Follow the instructions here: https://developers.google.com/gmail/api/quickstart
 
 Name the file you download "client_secrets.json" and place it in the root directory of your application.
 
+The first time you create a new instance of the `Gmail` class, a browser window will open and you'll be asked to give permissions to the application. This will only happen once.
+
 You are now good to go!
 
 ## Usage
@@ -22,7 +24,7 @@ You are now good to go!
 ```python
 from simplegmail import Gmail
 
-gmail = Gmail()  # will open a browser window to ask you to log in and authenticate
+gmail = Gmail() # will open a browser window to ask you to log in and authenticate
 
 params = {
   "to": "you@youremail.com",
@@ -39,7 +41,7 @@ gmail.send_message(**params)  # equivalent to send_message(to="you@youremail.com
 ```python
 from simplegmail import Gmail
 
-gmail = Gmail()  # will open a browser window to ask you to log in and authenticate
+gmail = Gmail()
 
 params = {
   "to": "you@youremail.com",
@@ -61,7 +63,7 @@ It couldn't be easier!
 ```python
 from simplegmail import Gmail
 
-gmail = Gmail()  # will open a browser window to ask you to log in and authenticate
+gmail = Gmail()
 
 # Unread messages in your inbox
 messages = gmail.get_unread_inbox()
@@ -72,7 +74,7 @@ messages = gmail.get_starred_messages()
 # ...and many more easy to use functions...
 
 # Print them out!
-for each message in messages:
+for message in messages:
     print("To: " + message['To'])
     print("From: " + message['From'])
     print("Subject: " + message['Subject'])
@@ -87,7 +89,7 @@ for each message in messages:
 from simplegmail import Gmail
 from simplegmail.query import construct_query
 
-gmail = Gmail()  # will open a browser window to ask you to log in and authenticate
+gmail = Gmail()
 
 # Unread messages in inbox with label "Work"
 messages = gmail.get_unread_inbox(label_ids=["Work"])
@@ -112,7 +114,7 @@ messages = gmail.get_messages(query=construct_query(query_params))
 from simplegmail import Gmail
 from simplegmail.query import construct_query
 
-gmail = Gmail()  # will open a browser window to ask you to log in and authenticate
+gmail = Gmail()
 
 # For even more control use queries:
 # Messages that are either:
