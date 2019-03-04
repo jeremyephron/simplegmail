@@ -64,7 +64,7 @@ class Gmail(object):
             )
 
     def send_message(self, sender, to, subject, msg_html, msg_plain, cc=None,
-                     bcc=None, attachments=None, signature=True):
+                     bcc=None, attachments=None, signature=False):
         """
         Sends an email.
 
@@ -422,8 +422,8 @@ class Gmail(object):
 
         return messages
 
-    def _create_message(self, sender, to, subject, msg_html, msg_plain,
-                        cc=None, bcc=None, attachments=None, signature=True):
+    def _create_message(self, sender, to, subject, msg_html=None, msg_plain=None,
+                        cc=None, bcc=None, attachments=None, signature=False):
         """
         Creates the raw email message to be sent.
 
@@ -437,7 +437,9 @@ class Gmail(object):
             cc (List[str]): The list of email addresses to be Cc'd.
             bcc (List[str]): The list of email addresses to be Bcc'd
             signature (bool): Whether the account signature should be added to
-                              the message.
+                              the message. Will add the signature to your HTML
+                              message only, or a create a HTML message if none
+                              exists.
 
         Returns:
             The message dict.
@@ -457,13 +459,19 @@ class Gmail(object):
 
         if signature:
             account_sig = self._get_alias_info(sender, 'me')['signature']
+            if msg_html is None:
+                msg_html = ''
+
             msg_html += "<br /><br />" + account_sig
 
         attach_plain = MIMEMultipart('alternative') if attachments else msg
         attach_html = MIMEMultipart('related') if attachments else msg
 
-        attach_html.attach(MIMEText(msg_html, 'html'))
-        attach_plain.attach(MIMEText(msg_plain, 'plain'))
+        if msg_plain:
+            attach_plain.attach(MIMEText(msg_plain, 'plain'))
+
+        if msg_html:
+            attach_html.attach(MIMEText(msg_html, 'html'))
 
         if attachments:
             attach_plain.attach(attach_html)
@@ -550,4 +558,5 @@ class Gmail(object):
                    sendAsEmail=send_as_email, userId=user_id)
 
         res = req.execute()
+        print(res)
         return res

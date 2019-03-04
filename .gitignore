@@ -117,3 +117,4 @@ client_secrets.json
 gmail-token.json
 test.py
 
+.DS_Store
