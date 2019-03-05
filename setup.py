@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
     name="simplegmail",
-    version="0.0.4",
+    version="1.0.0",
     url="https://github.com/illiteratecoder/simple-gmail",
     author="Jeremy Ephron",
     author_email="jeremyephron@gmail.com",
@@ -17,11 +17,11 @@ setuptools.setup(
     ],
     setup_requires=["pytest-runner"],
     tests_require=["pytest"],
-    classifiers=(
+    classifiers=[
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.6',
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
-    ),
+    ],
 )
