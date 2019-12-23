@@ -48,6 +48,14 @@ Note about authentication method: I have opted not to use a username-password
 authentication (through imap/smtp), since using Google's authorization is both 
 significantly safer and avoids clashing with Google's many security measures.
 
+## Installation
+
+Install using `pip` (Python3).
+
+```bash
+pip3 install simple-gmail
+```
+
 ## Usage
 ### Send a simple message:
 ```python
