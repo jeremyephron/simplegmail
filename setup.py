@@ -2,18 +2,20 @@ import setuptools
 
 setuptools.setup(
     name="simplegmail",
-    version="1.0.0",
-    url="https://github.com/illiteratecoder/simple-gmail",
+    version="2.0.0",
+    url="https://github.com/jeremyephron/simple-gmail",
     author="Jeremy Ephron",
     author_email="jeremyephron@gmail.com",
     description="A simple Python API client for Gmail.",
     long_description=open('README.md').read(),
+    long_description_content_type='text/markdown',
     packages=setuptools.find_packages(),
     install_requires=[
         'google-api-python-client>=1.7.3',
         'bs4>=0.0.1',
-        'py-dateutil>=2.2',
-        'oauth2client>=4.1.3'
+        'python-dateutil>=2.8.1',
+        'oauth2client>=4.1.3',
+        'lxml>=4.4.2'
     ],
     setup_requires=["pytest-runner"],
     tests_require=["pytest"],

@@ -1,7 +1,4 @@
-"""
-This module contains functions for constructing Gmail search queries.
-
-"""
+"""This module contains functions for constructing Gmail search queries."""
 
 def construct_query(*query_dicts, **query_terms):
     """
@@ -324,46 +321,31 @@ def _exact_phrase(phrase):
 
 
 def _starred():
-    """
-    Returns a query item matching messages that are starred.
-
-    """
+    """Returns a query item matching messages that are starred."""
 
     return f"is:starred"
 
 
 def _snoozed():
-    """
-    Returns a query item matching messages that are snoozed.
-
-    """
+    """Returns a query item matching messages that are snoozed."""
 
     return f"is:snoozed"
 
 
 def _unread():
-    """
-    Returns a query item matching messages that are unread.
-
-    """
+    """Returns a query item matching messages that are unread."""
 
     return f"is:unread"
 
 
 def _read():
-    """
-    Returns a query item matching messages that are read.
-
-    """
+    """Returns a query item matching messages that are read."""
 
     return f"is:read"
 
 
 def _important():
-    """
-    Returns a query item matching messages that are important.
-
-    """
+    """Returns a query item matching messages that are important."""
 
     return f"is:important"
 
@@ -486,10 +468,7 @@ def _near_words(first, second, distance, exact=False):
 
 
 def _attachment():
-    """
-    Returns a query item matching messages that have attachments.
-
-    """
+    """Returns a query item matching messages that have attachments."""
 
     return f"has:attachment"
 

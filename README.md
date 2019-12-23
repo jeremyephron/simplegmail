@@ -7,17 +7,46 @@ Current Supported Behavior:
 * Sending messages with attachments
 * Sending messages with your Gmail account signature
 * Retrieving messages with the full suite of Gmail's search capabilities
+* Retrieving messages with attachments, and downloading attachments
+* Modifying message labels (includes marking as read/unread, important/not 
+  important, starred/unstarred, trash/untrash, inbox/archive)
 
 ## Getting Started
-The only setup required is to download a "client secrets" file from Google that will allow your applications to do its thing.
+The only setup required is to download an OAuth 2.0 Client ID file from Google
+that will authorize your application.
 
-Follow the instructions here: https://developers.google.com/gmail/api/quickstart/python.
+This can be done at: https://console.developers.google.com/apis/credentials.
+For those who haven't created a credential for Google's API, after clicking the 
+link above (and logging in to the appropriate account),
 
-Name the file you download "client_secrets.json" and place it in the root directory of your application.
+1. Select/create the project that this authentication is for (if creating a new 
+project make sure to configure the OAuth consent screen; you only need to set 
+an Application name).
 
-The first time you create a new instance of the `Gmail` class, a browser window will open and you'll be asked to give permissions to the application. This will only happen once.
+2. Click on the "Dashboard" tab, then "Enable APIs and Services". Search for 
+Gmail and enable.
+
+3. Click on the Credentials tab, then "Create Credentials" > "OAuth client ID".
+
+4. Select what kind of application this is for, and give it a memorable name.
+
+5. Back on the credentials screen, click the download icon next to the 
+credential you just created to download it as a JSON object.
+
+6. Save this file as "client_secret.json" and place it in the root directory of 
+your application. (The `Gmail` class takes in an argument for the name of this 
+file if you choose to name it otherwise.)
+
+The first time you create a new instance of the `Gmail` class, a browser window 
+will open, and you'll be asked to give permissions to the application. This 
+will save an access token in a file named "gmail-token.json", and only needs to 
+occur once.
 
 You are now good to go!
+
+Note about authentication method: I have opted not to use a username-password 
+authentication (through imap/smtp), since using Google's authorization is both 
+significantly safer and avoids clashing with Google's many security measures.
 
 ## Usage
 ### Send a simple message:
@@ -34,7 +63,7 @@ params = {
   "msg_plain": "Hi\nThis is a plain text email.",
   "signature": True  # use my account signature
 }
-gmail.send_message(**params)  # equivalent to send_message(to="you@youremail.com", sender=...)
+message = gmail.send_message(**params)  # equivalent to send_message(to="you@youremail.com", sender=...)
 ```
 
 ### Send a message with attachments, cc, bcc fields:
@@ -54,7 +83,7 @@ params = {
   "attachments": ["path/to/something/cool.pdf", "path/to/image.jpg", "path/to/script.py"],
   "signature": True  # use my account signature
 }
-gmail.send_message(**params)  # equivalent to send_message(to="you@youremail.com", sender=...)
+message = gmail.send_message(**params)  # equivalent to send_message(to="you@youremail.com", sender=...)
 ```
 
 It couldn't be easier!
@@ -71,17 +100,57 @@ messages = gmail.get_unread_inbox()
 # Starred messages
 messages = gmail.get_starred_messages()
 
-# ...and many more easy to use functions...
+# ...and many more easy to use functions can be found in gmail.py!
 
 # Print them out!
 for message in messages:
-    print("To: " + message['To'])
-    print("From: " + message['From'])
-    print("Subject: " + message['Subject'])
-    print("Date: " + message['Date'])
-    print("Preview: " + message['Snippet'])
+    print("To: " + message.recipient)
+    print("From: " + message.sender)
+    print("Subject: " + message.subject)
+    print("Date: " + message.date)
+    print("Preview: " + message.snippet)
     
-    # print("Message Body: " + message['Message Body'])
+    print("Message Body: " + message.plain)  # or message.html
+```
+
+### Marking messages:
+```python
+from simplegmail import Gmail
+
+gmail = Gmail()
+
+messages = gmail.get_unread_inbox()
+
+message_to_read = messages[0]
+message_to_read.mark_as_read()
+
+# Oops, I want to mark as unread now
+message_to_read.mark_as_unread()
+
+message_to_star = messages[1]
+message_to_star.star()
+
+message_to_trash = messages[2]
+message_to_trash.trash()
+
+# ...and many more functions can be found in message.py!
+```
+
+### Downloading attachments:
+```python
+from simplegmail import Gmail
+
+gmail = Gmail()
+
+messages = gmail.get_unread_inbox()
+
+message = messages[0]
+if message.attachments:
+    for attm in message.attachments:
+        print('File: ' + attm.filename)
+        attm.save()  # downloads and saves each attachment under it's stored
+                     # filename. You can download without saving with `attm.download()`
+
 ```
 
 ### Retrieving messages (advanced, with queries!):

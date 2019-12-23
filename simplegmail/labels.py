@@ -1,7 +1,4 @@
-"""
-Gmail reserved system labels.
-
-"""
+"""Gmail reserved system labels."""
 
 INBOX = 'INBOX'
 SPAM = 'SPAM'

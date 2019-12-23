@@ -113,7 +113,7 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-client_secrets.json
+client_secret.json
 gmail-token.json
 test.py
 
