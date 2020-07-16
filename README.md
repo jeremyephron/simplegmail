@@ -53,7 +53,7 @@ significantly safer and avoids clashing with Google's many security measures.
 Install using `pip` (Python3).
 
 ```bash
-pip3 install simple-gmail
+pip3 install simplegmail
 ```
 
 ## Usage
