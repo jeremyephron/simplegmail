@@ -70,7 +70,8 @@ class Gmail(object):
                                                       self.SCOPES)
                 creds = tools.run_flow(flow, store)
 
-            self.service = build('gmail', 'v1', http=creds.authorize(Http()))
+            self.service = build('gmail', 'v1', http=creds.authorize(Http()),
+                                 cache_discovery=False)
 
         except InvalidClientSecretsError:
             raise FileNotFoundError(
