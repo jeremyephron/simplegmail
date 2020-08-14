@@ -25,6 +25,7 @@ from oauth2client import client, file, tools
 from oauth2client.clientsecrets import InvalidClientSecretsError
 
 from simplegmail import labels
+from simplegmail.labels import Label
 from simplegmail.message import Message
 from simplegmail.attachment import Attachment
 
@@ -125,7 +126,7 @@ class Gmail(object):
             print(f"An error has occurred: {error}")
             return "Error"
 
-    def get_unread_inbox(self, user_id='me', label_ids=[], query='',
+    def get_unread_inbox(self, user_id='me', label_ids=None, query='',
                          attachments='reference'):
         """
         Gets unread messages from your inbox.
@@ -146,10 +147,13 @@ class Gmail(object):
 
         """
 
+        if label_ids is None:
+            label_ids = []
+
         label_ids.append(labels.INBOX)
         return self.get_unread_messages(user_id, label_ids, query)
 
-    def get_starred_messages(self, user_id='me', label_ids=[], query='',
+    def get_starred_messages(self, user_id='me', label_ids=None, query='',
                              attachments='reference', include_spam_trash=False):
         """
         Gets starred messages from your account.
@@ -172,11 +176,14 @@ class Gmail(object):
 
         """
 
+        if label_ids is None:
+            label_ids = []
+
         label_ids.append(labels.STARRED)
         return self.get_messages(user_id, label_ids, query, attachments,
                                  include_spam_trash)
 
-    def get_important_messages(self, user_id='me', label_ids=[], query='',
+    def get_important_messages(self, user_id='me', label_ids=None, query='',
                                attachments='reference',
                                include_spam_trash=False):
         """
@@ -199,12 +206,15 @@ class Gmail(object):
             List[Message]: a list of message objects.
 
         """
+        
+        if label_ids is None:
+            label_ids = []
 
         label_ids.append(labels.IMPORTANT)
         return self.get_messages(user_id, label_ids, query, attachments, 
                                  include_spam_trash)
 
-    def get_unread_messages(self, user_id='me', label_ids=[], query='',
+    def get_unread_messages(self, user_id='me', label_ids=None, query='',
                             attachments='reference', include_spam_trash=False):
         """
         Gets unread messages from your account.
@@ -226,12 +236,15 @@ class Gmail(object):
             List[Message]: a list of message objects.
 
         """
+        
+        if label_ids is None:
+            label_ids = []
 
         label_ids.append(labels.UNREAD)
         return self.get_messages(user_id, label_ids, query, attachments,
                                  include_spam_trash)
 
-    def get_drafts(self, user_id='me', label_ids=[], query='',
+    def get_drafts(self, user_id='me', label_ids=None, query='',
                    attachments='reference', include_spam_trash=False):
         """
         Gets drafts saved in your account.
@@ -253,12 +266,15 @@ class Gmail(object):
             List[Message]: a list of message objects.
 
         """
+        
+        if label_ids is None:
+            label_ids = []
 
         label_ids.append(labels.DRAFTS)
         return self.get_messages(user_id, label_ids, query, attachments, 
                                  include_spam_trash)
 
-    def get_sent_messages(self, user_id='me', label_ids=[], query='',
+    def get_sent_messages(self, user_id='me', label_ids=None, query='',
                           attachments='reference', include_spam_trash=False):
         """
         Gets sent messages from your account.
@@ -280,12 +296,15 @@ class Gmail(object):
             List[Message]: a list of message objects.
 
         """
+        
+        if label_ids is None:
+            label_ids = []
 
         label_ids.append(labels.SENT)
         return self.get_messages(user_id, label_ids, query, attachments,
                                  include_spam_trash)
 
-    def get_trash_messages(self, user_id='me', label_ids=[], query='',
+    def get_trash_messages(self, user_id='me', label_ids=None, query='',
                            attachments='reference'):
 
         """
@@ -306,11 +325,14 @@ class Gmail(object):
             List[Message]: a list of message objects.
 
         """
+        
+        if label_ids is None:
+            label_ids = []
 
         label_ids.append(labels.TRASH)
         return self.get_messages(user_id, label_ids, query, attachments, True)
 
-    def get_spam_messages(self, user_id='me', label_ids=[], query='',
+    def get_spam_messages(self, user_id='me', label_ids=None, query='',
                           attachments='reference'):
         """
         Gets messages marked as spam from your account.
@@ -330,11 +352,14 @@ class Gmail(object):
             List[Message]: a list of message objects.
 
         """
+        
+        if label_ids is None:
+            label_ids = []
 
         label_ids.append(labels.SPAM)
         return self.get_messages(user_id, label_ids, query, attachments, True)
 
-    def get_messages(self, user_id='me', label_ids=[], query='',
+    def get_messages(self, user_id='me', label_ids=None, query='',
                      attachments='reference', include_spam_trash=False):
         """
         Gets messages from your account.
@@ -356,6 +381,11 @@ class Gmail(object):
             List[Message]: a list of message objects.
             
         """
+        
+        if label_ids is None:
+            label_ids = []
+
+        label_ids = [lbl.id for lbl in label_ids]
 
         try:
             response = self.service.users().messages().list(
@@ -384,6 +414,34 @@ class Gmail(object):
 
         except HttpError as error:
             print(f"An error occurred: {error}")
+    
+    def list_labels(self, user_id='me'):
+        """
+        Retrieves all labels for the specified user.
+
+        These Label objects are to be used with other functions like 
+        modify_labels().
+
+        Args:
+            user_id (str): the account the messages belong to. Default 'me'
+                refers to the main account.
+
+        Returns:
+            List[Label]: the list of Label objects.
+
+        """
+        
+        try:
+            res = self.service.users().labels().list(
+                userId=user_id
+            ).execute()
+
+        except HttpError as error:
+            print(f'An error occurred: {error}')
+
+        else:
+            labels = [Label(name=x['name'], id=x['id']) for x in res['labels']]
+            return labels
 
     def _get_messages_from_refs(self, user_id, message_refs,
                                 attachments='reference'):
@@ -439,7 +497,8 @@ class Gmail(object):
         else:
             msg_id = message['id']
             thread_id = message['threadId']
-            label_ids = message['labelIds']
+            user_labels = {x.id: x for x in self.list_labels(user_id=user_id)}
+            label_ids = [user_labels[x] for x in message['labelIds']]
             snippet = html.unescape(message['snippet'])
 
             payload = message['payload']

@@ -2,16 +2,32 @@
 
 A simple Gmail API client in Python for applications.
 
-Current Supported Behavior:
-* Sending html messages
-* Sending messages with attachments
-* Sending messages with your Gmail account signature
-* Retrieving messages with the full suite of Gmail's search capabilities
-* Retrieving messages with attachments, and downloading attachments
-* Modifying message labels (includes marking as read/unread, important/not 
+Currently Supported Behavior:
+- Sending html messages
+- Sending messages with attachments
+- Sending messages with your Gmail account signature
+- Retrieving messages with the full suite of Gmail's search capabilities
+- Retrieving messages with attachments, and downloading attachments
+- Modifying message labels (includes marking as read/unread, important/not 
   important, starred/unstarred, trash/untrash, inbox/archive)
 
+## Table of Contents
+
+- [Getting Started](#getting-started)
+- [Installation](#installation)
+- [Usage](#usage)
+    - [Send a simple message](#send-a-simple-message)
+    - [Send a message with attachments, cc, bcc fields](#send-a-message-with-attachments-cc-bcc-fields)
+    - [Retrieving messages](#retrieving-messages)
+    - [Marking messages](#marking-messages)
+    - [Changing message labels](#changing-message-labels)
+    - [Downloading attachments](#downloading-attachments)
+    - [Retrieving messages with queries](#retrieving-messages-advanced-with-queries)
+    - [Retrieving messages with more advanced queries](#retrieving-messages-more-advanced-with-more-queries)
+- [Feedback](#feedback)
+
 ## Getting Started
+
 The only setup required is to download an OAuth 2.0 Client ID file from Google
 that will authorize your application.
 
@@ -57,7 +73,9 @@ pip3 install simplegmail
 ```
 
 ## Usage
+
 ### Send a simple message:
+
 ```python
 from simplegmail import Gmail
 
@@ -75,6 +93,7 @@ message = gmail.send_message(**params)  # equivalent to send_message(to="you@you
 ```
 
 ### Send a message with attachments, cc, bcc fields:
+
 ```python
 from simplegmail import Gmail
 
@@ -97,6 +116,7 @@ message = gmail.send_message(**params)  # equivalent to send_message(to="you@you
 It couldn't be easier!
 
 ### Retrieving messages:
+
 ```python
 from simplegmail import Gmail
 
@@ -122,6 +142,7 @@ for message in messages:
 ```
 
 ### Marking messages:
+
 ```python
 from simplegmail import Gmail
 
@@ -144,7 +165,31 @@ message_to_trash.trash()
 # ...and many more functions can be found in message.py!
 ```
 
+### Changing message labels:
+
+```python
+from simplegmail import Gmail
+
+gmail = Gmail()
+
+# Get the label objects for your account. Each label has a specific ID that 
+# you need, not just the name!
+labels = gmail.list_labels()
+
+messages = gmail.get_unread_inbox()
+
+# We can add/remove a label
+message = messages[0]
+message.add_label(label[5]) 
+
+# We can "move" a message from one label to another
+message.modify_labels(to_add=labels[10], to_remove=message.label_ids[-1])
+
+# ...check out the code in message.py for more!
+```
+
 ### Downloading attachments:
+
 ```python
 from simplegmail import Gmail
 
@@ -162,6 +207,7 @@ if message.attachments:
 ```
 
 ### Retrieving messages (advanced, with queries!):
+
 ```python
 from simplegmail import Gmail
 from simplegmail.query import construct_query
@@ -187,6 +233,7 @@ messages = gmail.get_messages(query=construct_query(query_params))
 ```
 
 ### Retrieving messages (more advanced, with more queries!):
+
 ```python
 from simplegmail import Gmail
 from simplegmail.query import construct_query
@@ -221,4 +268,6 @@ messages = gmail.get_messages(query=construct_query(query_params_1, query_params
 For more on what you can do with queries, read the docstring for `construct_query()` in `query.py`.
 
 ## Feedback
-If there is functionality you'd like to see added, or any bugs in this project, please let me know by posting an issue or submitting a pull request!
+
+If there is functionality you'd like to see added, or any bugs in this project,
+please let me know by posting an issue or submitting a pull request!

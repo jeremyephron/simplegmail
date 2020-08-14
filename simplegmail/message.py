@@ -3,6 +3,7 @@
 from googleapiclient.errors import HttpError
 
 from simplegmail import labels
+from simplegmail.labels import Label
 
 
 class Message(object):
@@ -46,8 +47,8 @@ class Message(object):
     """
     
     def __init__(self, service, user_id, msg_id, thread_id, recipient, sender,
-                 subject, date, snippet, plain=None, html=None, label_ids=[],
-                 attachments=[]):
+                 subject, date, snippet, plain=None, html=None, label_ids=None,
+                 attachments=None):
         self._service = service
         self.user_id = user_id
         self.id = msg_id
@@ -59,8 +60,16 @@ class Message(object):
         self.snippet = snippet
         self.plain = plain
         self.html = html
-        self.label_ids = label_ids
-        self.attachments = attachments
+        self.label_ids = label_ids if label_ids is not None else []
+        self.attachments = attachments if attachments is not None else []
+
+    def __repr__(self) -> str:
+        """Represents the object by its sender, recipient, and id."""
+
+        return (f'Message(to: {self.recipient:.12}'
+                f'{"..." if len(self.recipient) > 12 else ""}, '
+                f'from: {self.sender:.12}'
+                f'{"..." if len(self.sender) > 12 else ""}, id: {self.id})')
 
     def mark_as_read(self):
         """Marks this message as read (by removing the UNREAD label)."""
@@ -285,6 +294,17 @@ class Message(object):
 
             self.label_ids = res['labelIds']
 
+    def add_label(self, to_add):
+        """
+        Adds the given label to the message.
+
+        Args:
+            to_add (str): the label ID to add.
+
+        """
+
+        self.add_labels([to_add])
+
     def add_labels(self, to_add):
         """
         Adds the given labels to the message.
@@ -295,6 +315,17 @@ class Message(object):
         """
         
         self.modify_labels(to_add, [])
+
+    def remove_label(self, to_remove):
+        """
+        Removes the given label from the message.
+
+        Args:
+            to_remove (str): the label ID to remove.
+
+        """
+
+        self.remove_labels([to_remove])
     
     def remove_labels(self, to_remove):
         """
@@ -317,6 +348,12 @@ class Message(object):
 
         """
 
+        if isinstance(to_add, Label):
+            to_add = [to_add]
+
+        if isinstance(to_remove, Label):
+            to_remove = [to_remove]
+
         try:
             res = self._service.users().messages().modify(
                 userId=self.user_id, id=self.id,
@@ -333,7 +370,18 @@ class Message(object):
                 
             self.label_ids = res['labelIds']
 
-    def _create_update_labels(self, to_add=[], to_remove=[]):
+    def move_from_inbox(self, to):
+        """
+        Moves a message from your inbox to another label "folder".
+
+        Args:
+            to (Label): the label to move to.
+
+        """
+
+        self.modify_labels(to, labels.INBOX)
+
+    def _create_update_labels(self, to_add=None, to_remove=None):
         """
         Creates an object for updating message labels.
 
@@ -345,8 +393,14 @@ class Message(object):
             dict: the modify labels object to pass to the Gmail API.
 
         """
+
+        if to_add is None:
+            to_add = []
+
+        if to_remove is None:
+            to_remove = []
         
         return {
-            'addLabelIds': to_add,
-            'removeLabelIds': to_remove
+            'addLabelIds': [lbl.id for lbl in to_add],
+            'removeLabelIds': [lbl.id for lbl in to_remove]
         }
