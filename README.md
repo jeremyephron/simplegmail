@@ -176,14 +176,17 @@ gmail = Gmail()
 # you need, not just the name!
 labels = gmail.list_labels()
 
+# To find a label by the name that you know (just an example):
+finance_label = list(filter(lambda x: x.name == 'Finance', labels))[0]
+
 messages = gmail.get_unread_inbox()
 
 # We can add/remove a label
 message = messages[0]
-message.add_label(label[5]) 
+message.add_label(finance_label) 
 
 # We can "move" a message from one label to another
-message.modify_labels(to_add=labels[10], to_remove=message.label_ids[-1])
+message.modify_labels(to_add=labels[10], to_remove=finance_label)
 
 # ...check out the code in message.py for more!
 ```
