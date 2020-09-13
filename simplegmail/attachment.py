@@ -1,10 +1,13 @@
 """
+File: attachment.py
+-------------------
 This module contains the implementation of the Attachment object.
 
 """
 
 import base64  # for base64.urlsafe_b64decode
 import os      # for os.path.exists
+from typing import Optional
 
 class Attachment(object):
     """
@@ -12,27 +15,35 @@ class Attachment(object):
     class should not be manually instantiated.
 
     Args:
-        service (googleapiclient.discovery.Resource): the Gmail service object.
-        user_id (str): the username of the account the message belongs to.
-        msg_id (str): the id of message the attachment belongs to.
-        att_id (str): the id of the attachment.
-        filename (str): the filename associated with the attachment.
-        filetype (str): the mime type of the file.
-        data (bytes): the raw data of the file. Default None.
+        service: The Gmail service object.
+        user_id: The username of the account the message belongs to.
+        msg_id: The id of message the attachment belongs to.
+        att_id: The id of the attachment.
+        filename: The filename associated with the attachment.
+        filetype: The mime type of the file.
+        data: The raw data of the file. Default None.
 
     Attributes:
-        _service (googleapiclient.discovery.Resource): the Gmail service object.
-        user_id (str): the username of the account the message belongs to.
-        msg_id (str): the id of message the attachment belongs to.
-        id (str): the id of the attachment.
-        filename (str): the filename associated with the attachment.
-        filetype (str): the mime type of the file.
-        data (bytes): the raw data of the file.
+        _service (googleapiclient.discovery.Resource): The Gmail service object.
+        user_id (str): The username of the account the message belongs to.
+        msg_id (str): The id of message the attachment belongs to.
+        id (str): The id of the attachment.
+        filename (str): The filename associated with the attachment.
+        filetype (str): The mime type of the file.
+        data (bytes): The raw data of the file.
 
     """
     
-    def __init__(self, service, user_id, msg_id, att_id, filename, filetype,
-                 data=None):
+    def __init__(
+        self,
+        service: 'googleapiclient.discovery.Resource',
+        user_id: str,
+        msg_id: str,
+        att_id: str,
+        filename: str,
+        filetype: str,
+        data: Optional[bytes] = None
+    ) -> None:
         self._service = service
         self.user_id = user_id
         self.msg_id = msg_id
@@ -41,9 +52,13 @@ class Attachment(object):
         self.filetype = filetype
         self.data = data
 
-    def download(self):
+    def download(self) -> None:
         """
         Downloads the data for an attachment if it does not exist.
+        
+        Raises:
+            googleapiclient.errors.HttpError: There was an error executing the 
+                HTTP request.
         
         """
         
@@ -57,18 +72,23 @@ class Attachment(object):
         data = res['data']
         self.data = base64.urlsafe_b64decode(data)
 
-    def save(self, filepath=None, overwrite=False):
+    def save(
+        self,
+        filepath: Optional[str] = None,
+        overwrite: bool = False
+    ) -> None:
         """
         Saves the attachment. Downloads file data if not downloaded.
         
         Args:
-            filepath (str): where to save the attachment. Default None, which 
-                uses the filename stored.
-            overwrite (bool): whether to overwrite existing files. Default False.
+            filepath: where to save the attachment. Default None, which uses 
+                the filename stored.
+            overwrite: whether to overwrite existing files. Default False.
         
         Raises:
             FileExistsError: if the call would overwrite an existing file and 
                 overwrite is not set to True.
+        
         """
         
         if filepath is None:

@@ -1,4 +1,9 @@
-"""This module contains functions for constructing Gmail search queries."""
+"""
+File: query.py
+--------------
+This module contains functions for constructing Gmail search queries.
+
+"""
 
 def construct_query(*query_dicts, **query_terms):
     """

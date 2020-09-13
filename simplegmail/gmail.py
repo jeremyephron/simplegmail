@@ -1,4 +1,6 @@
 """
+File: gmail.py
+--------------
 Home to the main Gmail service object. Currently supports sending mail (with
 attachments) and retrieving mail with the full suite of Gmail search options.
 
@@ -15,6 +17,7 @@ from email.mime.text        import MIMEText
 import html       # for html.unescape
 import mimetypes  # for mimetypes.guesstype
 import os         # for os.path.basename
+from typing import List, Optional, Union
 
 from bs4 import BeautifulSoup  # for parsing email HTML
 import dateutil.parser as parser  # for parsing email date
@@ -24,8 +27,8 @@ from httplib2 import Http
 from oauth2client import client, file, tools
 from oauth2client.clientsecrets import InvalidClientSecretsError
 
-from simplegmail import labels
-from simplegmail.labels import Label
+from simplegmail import label
+from simplegmail.label import Label
 from simplegmail.message import Message
 from simplegmail.attachment import Attachment
 
@@ -35,16 +38,16 @@ class Gmail(object):
     The Gmail class which serves as the entrypoint for the Gmail service API.
 
     Args:
-        client_secret_file (str): Optional. The name of the user's client
-            secret file. Default 'client_secret.json'.
+        client_secret_file: The name of the user's client secret file.
 
     Attributes:
+        client_secret_file (str): The name of the user's client secret file.
         service (googleapiclient.discovery.Resource): The Gmail service object.
 
     """
 
     # Allow Gmail to read and write emails, and access settings like aliases.
-    SCOPES = [
+    _SCOPES = [
         'https://www.googleapis.com/auth/gmail.modify',
         'https://www.googleapis.com/auth/gmail.settings.basic'
     ]
@@ -52,27 +55,30 @@ class Gmail(object):
     # If you don't have a client secret file, follow the instructions at:
     # https://developers.google.com/gmail/api/quickstart/python
     # Make sure the client secret file is in the root directory of your app.
-    CREDENTIALS_FILE = 'gmail-token.json'
+    _CREDENTIALS_FILE = 'gmail_token.json'
 
-    def __init__(self, client_secret_file='client_secret.json'):
+    def __init__(self, client_secret_file: str = 'client_secret.json') -> None:
         self.client_secret_file = client_secret_file
         
         try:
             # The file gmail-token.json stores the user's access and refresh
             # tokens, and is created automatically when the authorization flow
             # completes for the first time.
-            store = file.Storage(self.CREDENTIALS_FILE)
+            store = file.Storage(self._CREDENTIALS_FILE)
             creds = store.get()
 
             if not creds or creds.invalid:
 
                 # Will ask you to authenticate an account in your browser.
-                flow = client.flow_from_clientsecrets(self.client_secret_file,
-                                                      self.SCOPES)
+                flow = client.flow_from_clientsecrets(
+                    self.client_secret_file, self._SCOPES
+                )
                 creds = tools.run_flow(flow, store)
 
-            self.service = build('gmail', 'v1', http=creds.authorize(Http()),
-                                 cache_discovery=False)
+            self.service = build(
+                'gmail', 'v1', http=creds.authorize(Http()),
+                cache_discovery=False
+            )
 
         except InvalidClientSecretsError:
             raise FileNotFoundError(
@@ -83,39 +89,51 @@ class Gmail(object):
                 "follow the instructions listed there."
             )
 
-    def send_message(self, sender, to, subject='', msg_html=None, 
-                     msg_plain=None, cc=None, bcc=None, attachments=None,
-                     signature=False, user_id='me'):
+    def send_message(
+        self,
+        sender: str,
+        to: str,
+        subject: str = '',
+        msg_html: Optional[str] = None, 
+        msg_plain: Optional[str] = None,
+        cc: Optional[List[str]] = None,
+        bcc: Optional[List[str]] = None,
+        attachments: Optional[List[str]] = None,
+        signature: bool = False,
+        user_id: str = 'me'
+    ) -> Message:
         """
         Sends an email.
 
         Args:
-            sender (str): The email address the message is being sent from.
-            to (str): The email address the message is being sent to.
-            subject (str): The subject line of the email. Default ''.
-            msg_html (str): The HTML message of the email. Default None.
-            msg_plain (str): The plain text alternate message of the email (for
-                slow or old browsers). Default None.
-            cc (List[str]): The list of email addresses to be Cc'd. Default
-                None.
-            bcc (List[str]): The list of email addresses to be Bcc'd.
-                Default None.
-            attachments (List[str]): The list of attachment file names. Default
-                None.
-            signature (bool): Whether the account signature should be added to
-                the message. Default False.
-            user_id (str): Optional. The address of the sending account.
-                Default 'me'.
+            sender: The email address the message is being sent from.
+            to: The email address the message is being sent to.
+            subject: The subject line of the email.
+            msg_html: The HTML message of the email.
+            msg_plain: The plain text alternate message of the email. This is 
+                often displayed on slow or old browsers, or if the HTML message 
+                is not provided.
+            cc: The list of email addresses to be cc'd.
+            bcc: The list of email addresses to be bcc'd.
+            attachments: The list of attachment file names.
+            signature: Whether the account signature should be added to the 
+                message.
+            user_id: The address of the sending account. 'me' for the 
+                default address associated with the account.
 
         Returns:
-            (dict) The dict response of the message if successful.
-            (str) "Error" if unsuccessful.
+            The Message object representing the sent message.
+
+        Raises:
+            googleapiclient.errors.HttpError: There was an error executing the 
+                HTTP request.
 
         """
 
-        msg = self._create_message(sender, to, subject, msg_html, msg_plain,
-                                   cc=cc, bcc=bcc, attachments=attachments,
-                                   signature=signature)
+        msg = self._create_message(
+            sender, to, subject, msg_html, msg_plain, cc=cc, bcc=bcc,
+            attachments=attachments, signature=signature
+        )
 
         try:
             req = self.service.users().messages().send(userId='me', body=msg)
@@ -123,275 +141,358 @@ class Gmail(object):
             return self._build_message_from_ref(user_id, res, 'reference')
 
         except HttpError as error:
-            print(f"An error has occurred: {error}")
-            return "Error"
+            # Pass along the error
+            raise error
 
-    def get_unread_inbox(self, user_id='me', label_ids=None, query='',
-                         attachments='reference'):
+    def get_unread_inbox(
+        self,
+        user_id: str = 'me',
+        labels: Optional[List[Label]] = None,
+        query: str = '',
+        attachments: Union['ignore', 'reference', 'download'] = 'reference'
+    ) -> List[Message]:
         """
         Gets unread messages from your inbox.
 
         Args:
-            user_id (str): The user's email address [by default, the
-                           authenticated user].
-            label_ids (List[str]): Label IDs messages must match.
-            query (str): A Gmail query to match.
-            attachments (str): accepted values are 'ignore' which completely 
+            user_id: The user's email address. By default, the authenticated 
+                user.
+            labels: Labels that messages must match.
+            query: A Gmail query to match.
+            attachments: Accepted values are 'ignore' which completely 
                 ignores all attachments, 'reference' which includes attachment
                 information but does not download the data, and 'download' which
                 downloads the attachment data to store locally. Default
                 'reference'.
 
         Returns:
-            List[Message]: a list of message objects.
+            A list of message objects.
+
+        Raises:
+            googleapiclient.errors.HttpError: There was an error executing the 
+                HTTP request.
 
         """
 
-        if label_ids is None:
-            label_ids = []
+        if labels is None:
+            labels = []
 
-        label_ids.append(labels.INBOX)
-        return self.get_unread_messages(user_id, label_ids, query)
+        labels.append(label.INBOX)
+        return self.get_unread_messages(user_id, labels, query)
 
-    def get_starred_messages(self, user_id='me', label_ids=None, query='',
-                             attachments='reference', include_spam_trash=False):
+    def get_starred_messages(
+        self,
+        user_id: str = 'me',
+        labels: Optional[List[Label]] = None,
+        query: str = '',
+        attachments: Union['ignore', 'reference', 'download'] = 'reference',
+        include_spam_trash: bool = False
+    ) -> List[Message]:
         """
         Gets starred messages from your account.
 
         Args:
-            user_id (str): The user's email address [by default, the
-                           authenticated user].
-            label_ids (List[str]): Label IDs messages must match.
-            query (str): A Gmail query to match.
-            attachments (str): accepted values are 'ignore' which completely 
+            user_id: The user's email address. By default, the authenticated 
+                user.
+            labels: Label IDs messages must match.
+            query: A Gmail query to match.
+            attachments: accepted values are 'ignore' which completely 
                 ignores all attachments, 'reference' which includes attachment
                 information but does not download the data, and 'download' which
                 downloads the attachment data to store locally. Default
                 'reference'.
-            include_spam_trash (bool): Whether to include messages from spam
-                                       or trash.
+            include_spam_trash: Whether to include messages from spam or trash.
 
         Returns:
-            List[Message]: a list of message objects.
+            A list of message objects.
+
+        Raises:
+            googleapiclient.errors.HttpError: There was an error executing the 
+                HTTP request.
 
         """
 
-        if label_ids is None:
-            label_ids = []
+        if labels is None:
+            labels = []
 
-        label_ids.append(labels.STARRED)
-        return self.get_messages(user_id, label_ids, query, attachments,
+        labels.append(label.STARRED)
+        return self.get_messages(user_id, labels, query, attachments,
                                  include_spam_trash)
 
-    def get_important_messages(self, user_id='me', label_ids=None, query='',
-                               attachments='reference',
-                               include_spam_trash=False):
+    def get_important_messages(
+        self,
+        user_id: str = 'me',
+        labels: Optional[List[Label]] = None,
+        query: str = '',
+        attachments: Union['ignore', 'reference', 'download'] = 'reference',
+        include_spam_trash: bool = False
+    ) -> List[Message]:
         """
         Gets messages marked important from your account.
 
         Args:
-            user_id (str): The user's email address [by default, the
-                           authenticated user].
-            label_ids (List[str]): Label IDs messages must match.
-            query (str): A Gmail query to match.
-            attachments (str): accepted values are 'ignore' which completely 
+            user_id: The user's email address. By default, the authenticated 
+                user.
+            labels: Label IDs messages must match.
+            query: A Gmail query to match.
+            attachments: accepted values are 'ignore' which completely 
                 ignores all attachments, 'reference' which includes attachment
                 information but does not download the data, and 'download' which
                 downloads the attachment data to store locally. Default
                 'reference'.
-            include_spam_trash (bool): Whether to include messages from spam
-                                       or trash.
+            include_spam_trash: Whether to include messages from spam or trash.
 
         Returns:
-            List[Message]: a list of message objects.
+            A list of message objects.
+
+        Raises:
+            googleapiclient.errors.HttpError: There was an error executing the 
+                HTTP request.
 
         """
         
-        if label_ids is None:
-            label_ids = []
+        if labels is None:
+            labels = []
 
-        label_ids.append(labels.IMPORTANT)
-        return self.get_messages(user_id, label_ids, query, attachments, 
+        labels.append(label.IMPORTANT)
+        return self.get_messages(user_id, labels, query, attachments, 
                                  include_spam_trash)
 
-    def get_unread_messages(self, user_id='me', label_ids=None, query='',
-                            attachments='reference', include_spam_trash=False):
+    def get_unread_messages(
+        self,
+        user_id: str = 'me',
+        labels: Optional[List[Label]] = None,
+        query: str = '',
+        attachments: Union['ignore', 'reference', 'download'] = 'reference',
+        include_spam_trash: bool = False
+    ) -> List[Message]:
         """
         Gets unread messages from your account.
 
         Args:
-            user_id (str): The user's email address [by default, the
-                           authenticated user].
-            label_ids (List[str]): Label IDs messages must match.
-            query (str): A Gmail query to match.
-            attachments (str): accepted values are 'ignore' which completely 
+            user_id: The user's email address. By default, the authenticated 
+                user.
+            labels: Label IDs messages must match.
+            query: A Gmail query to match.
+            attachments: accepted values are 'ignore' which completely 
                 ignores all attachments, 'reference' which includes attachment
                 information but does not download the data, and 'download' which
                 downloads the attachment data to store locally. Default
                 'reference'.
-            include_spam_trash (bool): Whether to include messages from spam
-                or trash.
+            include_spam_trash: Whether to include messages from spam or trash.
 
         Returns:
-            List[Message]: a list of message objects.
+            A list of message objects.
+
+        Raises:
+            googleapiclient.errors.HttpError: There was an error executing the 
+                HTTP request.
 
         """
         
-        if label_ids is None:
-            label_ids = []
+        if labels is None:
+            labels = []
 
-        label_ids.append(labels.UNREAD)
-        return self.get_messages(user_id, label_ids, query, attachments,
+        labels.append(label.UNREAD)
+        return self.get_messages(user_id, labels, query, attachments,
                                  include_spam_trash)
 
-    def get_drafts(self, user_id='me', label_ids=None, query='',
-                   attachments='reference', include_spam_trash=False):
+    def get_drafts(
+        self,
+        user_id: str = 'me',
+        labels: Optional[List[Label]] = None,
+        query: str = '',
+        attachments: Union['ignore', 'reference', 'download'] = 'reference',
+        include_spam_trash: bool = False
+    ) -> List[Message]:
         """
         Gets drafts saved in your account.
 
         Args:
-            user_id (str): The user's email address [by default, the
-                           authenticated user].
-            label_ids (List[str]): Label IDs messages must match.
-            query (str): A Gmail query to match.
-            attachments (str): accepted values are 'ignore' which completely 
+            user_id: The user's email address. By default, the authenticated 
+                user.
+            labels: Label IDs messages must match.
+            query: A Gmail query to match.
+            attachments: accepted values are 'ignore' which completely 
                 ignores all attachments, 'reference' which includes attachment
                 information but does not download the data, and 'download' which
                 downloads the attachment data to store locally. Default
                 'reference'.
-            include_spam_trash (bool): Whether to include messages from spam
-                                       or trash.
+            include_spam_trash: Whether to include messages from spam or trash.
 
         Returns:
-            List[Message]: a list of message objects.
+            A list of message objects.
+
+        Raises:
+            googleapiclient.errors.HttpError: There was an error executing the 
+                HTTP request.
 
         """
         
-        if label_ids is None:
-            label_ids = []
+        if labels is None:
+            labels = []
 
-        label_ids.append(labels.DRAFTS)
-        return self.get_messages(user_id, label_ids, query, attachments, 
+        labels.append(label.DRAFT)
+        return self.get_messages(user_id, labels, query, attachments, 
                                  include_spam_trash)
 
-    def get_sent_messages(self, user_id='me', label_ids=None, query='',
-                          attachments='reference', include_spam_trash=False):
+    def get_sent_messages(
+        self,
+        user_id: str = 'me',
+        labels: Optional[List[Label]] = None,
+        query: str = '',
+        attachments: Union['ignore', 'reference', 'download'] = 'reference',
+        include_spam_trash: bool = False
+    ) -> List[Message]:
         """
         Gets sent messages from your account.
 
-        Args:
-            user_id (str): The user's email address [by default, the
-                authenticated user].
-            label_ids (List[str]): Label IDs messages must match.
-            query (str): A Gmail query to match.
-            attachments (str): accepted values are 'ignore' which completely 
+         Args:
+            user_id: The user's email address. By default, the authenticated 
+                user.
+            labels: Label IDs messages must match.
+            query: A Gmail query to match.
+            attachments: accepted values are 'ignore' which completely 
                 ignores all attachments, 'reference' which includes attachment
                 information but does not download the data, and 'download' which
                 downloads the attachment data to store locally. Default
                 'reference'.
-            include_spam_trash (bool): Whether to include messages from spam
-                or trash.
+            include_spam_trash: Whether to include messages from spam or trash.
 
         Returns:
-            List[Message]: a list of message objects.
+            A list of message objects.
+
+        Raises:
+            googleapiclient.errors.HttpError: There was an error executing the 
+                HTTP request.
 
         """
         
-        if label_ids is None:
-            label_ids = []
+        if labels is None:
+            labels = []
 
-        label_ids.append(labels.SENT)
-        return self.get_messages(user_id, label_ids, query, attachments,
+        labels.append(label.SENT)
+        return self.get_messages(user_id, labels, query, attachments,
                                  include_spam_trash)
 
-    def get_trash_messages(self, user_id='me', label_ids=None, query='',
-                           attachments='reference'):
+    def get_trash_messages(
+        self,
+        user_id: str = 'me',
+        labels: Optional[List[Label]] = None,
+        query: str = '',
+        attachments: Union['ignore', 'reference', 'download'] = 'reference'
+    ) -> List[Message]:
 
         """
         Gets messages in your trash from your account.
 
         Args:
-            user_id (str): The user's email address [by default, the
-                authenticated user].
-            label_ids (List[str]): Label IDs messages must match.
-            query (str): A Gmail query to match.
-            attachments (str): accepted values are 'ignore' which completely 
+            user_id: The user's email address. By default, the authenticated 
+                user.
+            labels: Label IDs messages must match.
+            query: A Gmail query to match.
+            attachments: accepted values are 'ignore' which completely 
                 ignores all attachments, 'reference' which includes attachment
                 information but does not download the data, and 'download' which
                 downloads the attachment data to store locally. Default
                 'reference'.
 
         Returns:
-            List[Message]: a list of message objects.
+            A list of message objects.
+
+        Raises:
+            googleapiclient.errors.HttpError: There was an error executing the 
+                HTTP request.
 
         """
         
-        if label_ids is None:
-            label_ids = []
+        if labels is None:
+            labels = []
 
-        label_ids.append(labels.TRASH)
-        return self.get_messages(user_id, label_ids, query, attachments, True)
+        labels.append(label.TRASH)
+        return self.get_messages(user_id, labels, query, attachments, True)
 
-    def get_spam_messages(self, user_id='me', label_ids=None, query='',
-                          attachments='reference'):
+    def get_spam_messages(
+        self,
+        user_id: str = 'me',
+        labels: Optional[List[Label]] = None,
+        query: str = '',
+        attachments: Union['ignore', 'reference', 'download'] = 'reference'
+    ) -> List[Message]:
         """
         Gets messages marked as spam from your account.
 
         Args:
-            user_id (str): The user's email address [by default, the
-                authenticated user].
-            label_ids (List[str]): Label IDs messages must match.
-            query (str): A Gmail query to match.
-            attachments (str): accepted values are 'ignore' which completely 
+            user_id: The user's email address. By default, the authenticated 
+                user.
+            labels: Label IDs messages must match.
+            query: A Gmail query to match.
+            attachments: accepted values are 'ignore' which completely 
                 ignores all attachments, 'reference' which includes attachment
                 information but does not download the data, and 'download' which
                 downloads the attachment data to store locally. Default
                 'reference'.
 
         Returns:
-            List[Message]: a list of message objects.
+            A list of message objects.
+
+        Raises:
+            googleapiclient.errors.HttpError: There was an error executing the 
+                HTTP request.
 
         """
         
-        if label_ids is None:
-            label_ids = []
+        
+        if labels is None:
+            labels = []
 
-        label_ids.append(labels.SPAM)
-        return self.get_messages(user_id, label_ids, query, attachments, True)
+        labels.append(label.SPAM)
+        return self.get_messages(user_id, labels, query, attachments, True)
 
-    def get_messages(self, user_id='me', label_ids=None, query='',
-                     attachments='reference', include_spam_trash=False):
+    def get_messages(
+        self,
+        user_id: str = 'me',
+        labels: Optional[List[Label]] = None,
+        query: str = '',
+        attachments: Union['ignore', 'reference', 'download'] = 'reference',
+        include_spam_trash: bool = False
+    ) -> List[Message]:
         """
         Gets messages from your account.
 
         Args:
-            user_id (str): the user's email address. Default 'me', the
-                authenticated user.
-            label_ids (List[str]): label IDs messages must match.
-            query (str): a Gmail query to match.
-            attachments (str): accepted values are 'ignore' which completely 
+            user_id: the user's email address. Default 'me', the authenticated 
+                user.
+            labels: label IDs messages must match.
+            query: a Gmail query to match.
+            attachments: accepted values are 'ignore' which completely 
                 ignores all attachments, 'reference' which includes attachment
                 information but does not download the data, and 'download' which
                 downloads the attachment data to store locally. Default
                 'reference'.
-            include_spam_trash (bool): whether to include messages from spam
-                or trash.
+            include_spam_trash: whether to include messages from spam or trash.
 
         Returns:
-            List[Message]: a list of message objects.
-            
+            A list of message objects.
+
+        Raises:
+            googleapiclient.errors.HttpError: There was an error executing the 
+                HTTP request.
+        
         """
         
-        if label_ids is None:
-            label_ids = []
+        if labels is None:
+            labels = []
 
-        label_ids = [lbl.id for lbl in label_ids]
+        labels_ids = [
+            lbl.id if isinstance(lbl, Label) else lbl for lbl in labels
+        ]
 
         try:
             response = self.service.users().messages().list(
                 userId=user_id,
                 q=query,
-                labelIds=label_ids
+                labelIds=labels_ids
             ).execute()
 
             message_refs = []
@@ -403,7 +504,7 @@ class Gmail(object):
                 response = self.service.users().messages().list(
                     userId=user_id,
                     q=query,
-                    labelIds=label_ids,
+                    labelIds=labels_ids,
                     pageToken=page_token
                 ).execute()
 
@@ -413,9 +514,10 @@ class Gmail(object):
                                                 attachments)
 
         except HttpError as error:
-            print(f"An error occurred: {error}")
+            # Pass along the error
+            raise error
     
-    def list_labels(self, user_id='me'):
+    def list_labels(self, user_id: str = 'me') -> List[Label]:
         """
         Retrieves all labels for the specified user.
 
@@ -423,11 +525,15 @@ class Gmail(object):
         modify_labels().
 
         Args:
-            user_id (str): the account the messages belong to. Default 'me'
-                refers to the main account.
+            user_id: The user's email address. By default, the authenticated 
+                user.
 
         Returns:
-            List[Label]: the list of Label objects.
+            The list of Label objects.
+
+        Raises:
+            googleapiclient.errors.HttpError: There was an error executing the 
+                HTTP request.
 
         """
         
@@ -437,52 +543,67 @@ class Gmail(object):
             ).execute()
 
         except HttpError as error:
-            print(f'An error occurred: {error}')
+            # Pass along the error
+            raise error
 
         else:
             labels = [Label(name=x['name'], id=x['id']) for x in res['labels']]
             return labels
 
-    def _get_messages_from_refs(self, user_id, message_refs,
-                                attachments='reference'):
+    def _get_messages_from_refs(
+        self,
+        user_id: str,
+        message_refs: List[dict],
+        attachments: Union['ignore', 'reference', 'download'] = 'reference'
+    ) -> List[Message]:
         """
         Retrieves the actual messages from a list of references.
 
         Args:
-            user_id (str): The account the messages belong to.
-            message_refs (List[dict]): A list of message references of the form
-                                       {id, threadId}.
-            attachments (str): Accepted values are 'ignore' which completely 
-                ignores all attachments, 'reference' which includes attachment
+            user_id: The account the messages belong to.
+            message_refs: A list of message references with keys id, threadId.
+            attachments: Accepted values are 'ignore' which completely ignores 
+                all attachments, 'reference' which includes attachment
                 information but does not download the data, and 'download' which
                 downloads the attachment data to store locally. Default
                 'reference'.
 
         Returns:
-            List[Message]: a list of Message objects.
+            A list of Message objects.
+
+        Raises:
+            googleapiclient.errors.HttpError: There was an error executing the 
+                HTTP request.
 
         """
 
         return [self._build_message_from_ref(user_id, ref, attachments)
                 for ref in message_refs]
 
-    def _build_message_from_ref(self, user_id, message_ref,
-                                attachments='reference'):
+    def _build_message_from_ref(
+        self,
+        user_id: str,
+        message_ref: dict,
+        attachments: Union['ignore', 'reference', 'download'] = 'reference'
+    ) -> Message:
         """
         Creates a Message object from a reference.
 
         Args:
-            user_id (str): the username of the account the message belongs to.
-            message_ref (dict): the message reference object return from the 
-                Gmail API.
-            attachments (str): Accepted values are 'ignore' which completely 
-                ignores all attachments, 'reference' which includes attachment
+            user_id: The username of the account the message belongs to.
+            message_ref: The message reference object return from the Gmail API.
+            attachments: Accepted values are 'ignore' which completely ignores 
+                all attachments, 'reference' which includes attachment
                 information but does not download the data, and 'download' which
                 downloads the attachment data to store locally. Default
                 'reference'.
 
         Returns:
-            Message: the Message object.
+            The Message object.
+
+        Raises:
+            googleapiclient.errors.HttpError: There was an error executing the 
+                HTTP request.
 
         """
         try:
@@ -492,7 +613,8 @@ class Gmail(object):
             ).execute()
         
         except HttpError as error:
-            print(f'An error occurred while retreiving a message: {error}')
+            # Pass along the error
+            raise error
 
         else:
             msg_id = message['id']
@@ -550,24 +672,32 @@ class Gmail(object):
                 sender, subject, date, snippet, plain_msg, html_msg, label_ids,
                 attms)
 
-    def _evaluate_message_payload(self, payload, user_id, msg_id,
-                                  attachments='reference'):
+    def _evaluate_message_payload(
+        self,
+        payload: dict,
+        user_id: str,
+        msg_id: str,
+        attachments: Union['ignore', 'reference', 'download'] = 'reference'
+    ) ->List[dict]:
         """
         Recursively evaluates a message payload.
 
         Args:
-            payload (dict): the message payload object (response from Gmail
-                API).
-            user_id (str): the current account address (default 'me').
-            msg_id (str): the id of the message.
-            attachments (str): Accepted values are 'ignore' which completely 
-                ignores all attachments, 'reference' which includes attachment
+            payload: The message payload object (response from Gmail API).
+            user_id: The current account address (default 'me').
+            msg_id: The id of the message.
+            attachments: Accepted values are 'ignore' which completely ignores 
+                all attachments, 'reference' which includes attachment
                 information but does not download the data, and 'download' which
                 downloads the attachment data to store locally. Default
                 'reference'.
 
         Returns:
-            List[dict]: a list of message parts.
+            A list of message parts.
+
+        Raises:
+            googleapiclient.errors.HttpError: There was an error executing the 
+                HTTP request.
 
         """
 
@@ -625,25 +755,34 @@ class Gmail(object):
 
         return []
 
-    def _create_message(self, sender, to, subject='', msg_html=None,
-                        msg_plain=None, cc=None, bcc=None, attachments=None,
-                        signature=False):
+    def _create_message(
+        self,
+        sender: str,
+        to: str, 
+        subject: str = '',
+        msg_html: str = None,
+        msg_plain: str = None,
+        cc: List[str] = None,
+        bcc: List[str] = None,
+        attachments: List[str] = None,
+        signature: bool = False
+    ) -> dict:
         """
         Creates the raw email message to be sent.
 
         Args:
-            sender (str): The email address the message is being sent from.
-            to (str): The email address the message is being sent to.
-            subject (str): The subject line of the email.
-            msg_html (str): The HTML message of the email.
-            msg_plain (str): The plain text alternate message of the email (for
-                             slow or old browsers).
-            cc (List[str]): The list of email addresses to be Cc'd.
-            bcc (List[str]): The list of email addresses to be Bcc'd
-            signature (bool): Whether the account signature should be added to
-                              the message. Will add the signature to your HTML
-                              message only, or a create a HTML message if none
-                              exists.
+            sender: The email address the message is being sent from.
+            to: The email address the message is being sent to.
+            subject: The subject line of the email.
+            msg_html: The HTML message of the email.
+            msg_plain: The plain text alternate message of the email (for slow 
+                or old browsers).
+            cc: The list of email addresses to be Cc'd.
+            bcc: The list of email addresses to be Bcc'd
+            attachments: A list of attachment file paths.
+            signature: Whether the account signature should be added to the 
+                message. Will add the signature to your HTML message only, or a 
+                create a HTML message if none exists.
 
         Returns:
             The message dict.
@@ -687,13 +826,17 @@ class Gmail(object):
             'raw': base64.urlsafe_b64encode(msg.as_string().encode()).decode()
         }
 
-    def _ready_message_with_attachments(self, msg, attachments):
+    def _ready_message_with_attachments(
+        self,
+        msg: MIMEMultipart,
+        attachments: List[str]
+    ) -> None:
         """
         Converts attachment filepaths to MIME objects and adds them to msg.
 
         Args:
-            msg (MIMEMultipart): The message to add attachments to.
-            attachments (List[str]): A list of attachment file paths.
+            msg: The message to add attachments to.
+            attachments: A list of attachment file paths.
 
         """
 
@@ -722,7 +865,11 @@ class Gmail(object):
             attm.add_header('Content-Disposition', 'attachment', filename=fname)
             msg.attach(attm)
 
-    def _get_alias_info(self, send_as_email, user_id="me"):
+    def _get_alias_info(
+        self,
+        send_as_email: str,
+        user_id: str = 'me'
+    ) -> dict:
         """
         Returns the alias info of an email address on the authenticated
         account.
@@ -747,10 +894,13 @@ class Gmail(object):
         }
 
         Args:
-            send_as_email (str): The alias account information is requested for
-                                 (could be the primary account).
-            user_id (str): The user ID of the authenticated user the
-                           account the alias is for (default "me").
+            send_as_email: The alias account information is requested for
+                (could be the primary account).
+            user_id: The user ID of the authenticated user the account the 
+                alias is for (default "me").
+
+        Returns:
+            The dict of alias info associated with the account.
 
         """
 
