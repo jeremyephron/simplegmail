@@ -217,21 +217,28 @@ from simplegmail.query import construct_query
 
 gmail = Gmail()
 
+labels = gmail.list_labels()
+
+# To find a label by the name that you know (just an example):
+finance_label = list(filter(lambda x: x.name == 'Finance', labels))[0]
+homework_label = list(filter(lambda x: x.name == 'Homework', labels))[0]
+cs_label = list(filter(lambda x: x.name == 'CS', labels))[0]
+
 # Unread messages in inbox with label "Work"
-messages = gmail.get_unread_inbox(label_ids=["Work"])
+messages = gmail.get_unread_inbox(labels=[finance_label])
 
 # For even more control use queries:
-# Messages that are: newer than 2 days old, unread, labeled "Work" or both "Homework" and "CS"
+# Messages that are: newer than 2 days old, unread, labeled "Finance" or both "Homework" and "CS"
 query_params = {
     "newer_than": (2, "day"),
     "unread": True,
-    "labels":[["Work"], ["Homework", "CS"]]
+    "labels":[[finance_label], [homework_label, cs_label]]
 }
 
 messages = gmail.get_messages(query=construct_query(query_params))
 
 # We could have also accomplished this with
-# messages = gmail.get_unread_messages(query=construct_query(newer_than=(2, "day"), labels=[["Work"], ["Homework", "CS"]]))
+# messages = gmail.get_unread_messages(query=construct_query(newer_than=(2, "day"), labels=[[finance_label], [homework_label, cs_label]]))
 # There are many, many different ways of achieving the same result with search.
 ```
 
@@ -245,21 +252,29 @@ gmail = Gmail()
 
 # For even more control use queries:
 # Messages that are either:
-#   newer than 2 days old, unread, labeled "Work" or both "Homework" and "CS"
+#   newer than 2 days old, unread, labeled "Finance" or both "Homework" and "CS"
 #     or
 #   newer than 1 month old, unread, labeled "Top Secret", but not starred.
+
+labels = gmail.list_labels()
+
+# To find a label by the name that you know (just an example):
+finance_label = list(filter(lambda x: x.name == 'Finance', labels))[0]
+homework_label = list(filter(lambda x: x.name == 'Homework', labels))[0]
+cs_label = list(filter(lambda x: x.name == 'CS', labels))[0]
+top_secret_label = list(filter(lambda x: x.name == 'Top Secret', labels))[0]
 
 # Construct our two queries separately
 query_params_1 = {
     "newer_than": (2, "day"),
     "unread": True,
-    "labels":[["Work"], ["Homework", "CS"]]
+    "labels":[[finance_label], [homework_label, cs_label]]
 }
 
 query_params_2 = {
     "newer_than": (1, "month"),
     "unread": True,
-    "labels": ["Top Secret"],
+    "labels": [top_secret_label],
     "starred": True,
     "exclude_starred": True
 }
