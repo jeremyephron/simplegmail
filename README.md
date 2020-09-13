@@ -2,6 +2,12 @@
 
 A simple Gmail API client in Python for applications.
 
+# Note about upgrading to v3.0.0
+
+The newest release is not backwards compatible with previous versions, so you'll need to re-authenticate tokens you have for existing projects upon upgrading.
+
+---
+
 Currently Supported Behavior:
 - Sending html messages
 - Sending messages with attachments
@@ -218,10 +224,13 @@ from simplegmail.query import construct_query
 gmail = Gmail()
 
 # Unread messages in inbox with label "Work"
-messages = gmail.get_unread_inbox(label_ids=["Work"])
+labels = gmail.list_labels()
+work_label = list(filter(lambda x: x.name == 'Work', labels))[0]
+
+messages = gmail.get_unread_inbox(labels=[work_label])
 
 # For even more control use queries:
-# Messages that are: newer than 2 days old, unread, labeled "Work" or both "Homework" and "CS"
+# Messages that are: newer than 2 days old, unread, labeled "Finance" or both "Homework" and "CS"
 query_params = {
     "newer_than": (2, "day"),
     "unread": True,
@@ -245,15 +254,17 @@ gmail = Gmail()
 
 # For even more control use queries:
 # Messages that are either:
-#   newer than 2 days old, unread, labeled "Work" or both "Homework" and "CS"
+#   newer than 2 days old, unread, labeled "Finance" or both "Homework" and "CS"
 #     or
 #   newer than 1 month old, unread, labeled "Top Secret", but not starred.
+
+labels = gmail.list_labels()
 
 # Construct our two queries separately
 query_params_1 = {
     "newer_than": (2, "day"),
     "unread": True,
-    "labels":[["Work"], ["Homework", "CS"]]
+    "labels":[["Finance"], ["Homework", "CS"]]
 }
 
 query_params_2 = {
