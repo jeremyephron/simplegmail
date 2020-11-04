@@ -82,7 +82,7 @@ class Gmail(object):
 
         except InvalidClientSecretsError:
             raise FileNotFoundError(
-                "Your 'client_secrets.json' file is nonexistent. Make sure "
+                "Your 'client_secret.json' file is nonexistent. Make sure "
                 "the file is in the root directory of your application. If "
                 "you don't have a client secrets file, go to https://"
                 "developers.google.com/gmail/api/quickstart/python, and "
