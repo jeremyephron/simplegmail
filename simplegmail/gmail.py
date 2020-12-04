@@ -620,7 +620,10 @@ class Gmail(object):
             msg_id = message['id']
             thread_id = message['threadId']
             user_labels = {x.id: x for x in self.list_labels(user_id=user_id)}
-            label_ids = [user_labels[x] for x in message['labelIds']]
+            try:
+                label_ids = [user_labels[x] for x in message['labelIds']
+            except KeyError:
+                label_ids = []
             snippet = html.unescape(message['snippet'])
 
             payload = message['payload']
