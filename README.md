@@ -2,6 +2,12 @@
 
 A simple Gmail API client in Python for applications.
 
+## New in v3.1.0
+
+Message downloading has been multithreaded resulting in significant speedup of downloads! Make sure to upgrade your installation (no other changes are required).
+
+---
+
 Currently Supported Behavior:
 - Sending html messages
 - Sending messages with attachments
@@ -37,7 +43,7 @@ link above (and logging in to the appropriate account),
 
 1. Select/create the project that this authentication is for (if creating a new 
 project make sure to configure the OAuth consent screen; you only need to set 
-an Application name).
+an Application name)
 
 2. Click on the "Dashboard" tab, then "Enable APIs and Services". Search for 
 Gmail and enable.
