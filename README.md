@@ -2,12 +2,6 @@
 
 A simple Gmail API client in Python for applications.
 
-# Note about upgrading to v3.0.0
-
-The newest release is not backwards compatible with previous versions, so you'll need to re-authenticate tokens you have for existing projects upon upgrading.
-
----
-
 Currently Supported Behavior:
 - Sending html messages
 - Sending messages with attachments
