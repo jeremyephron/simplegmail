@@ -14,12 +14,14 @@ from email.mime.base        import MIMEBase
 from email.mime.image       import MIMEImage
 from email.mime.multipart   import MIMEMultipart
 from email.mime.text        import MIMEText
-import html       # for html.unescape
-import mimetypes  # for mimetypes.guesstype
-import os         # for os.path.basename
+import html         # for html.unescape
+import math         # for math.ceil
+import mimetypes    # for mimetypes.guesstype
+import os           # for os.path.basename
+import threading    # for threading.Thread
 from typing import List, Optional, Union
 
-from bs4 import BeautifulSoup  # for parsing email HTML
+from bs4 import BeautifulSoup     # for parsing email HTML
 import dateutil.parser as parser  # for parsing email date
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -57,26 +59,33 @@ class Gmail(object):
     # Make sure the client secret file is in the root directory of your app.
     _CREDENTIALS_FILE = 'gmail_token.json'
 
-    def __init__(self, client_secret_file: str = 'client_secret.json') -> None:
+    def __init__(
+        self,
+        client_secret_file: str = 'client_secret.json',
+        _creds: Optional[client.Credentials] = None
+    ) -> None:
         self.client_secret_file = client_secret_file
         
         try:
             # The file gmail-token.json stores the user's access and refresh
             # tokens, and is created automatically when the authorization flow
             # completes for the first time.
-            store = file.Storage(self._CREDENTIALS_FILE)
-            creds = store.get()
+            if _creds:
+                self.creds = _creds
+            else:
+                store = file.Storage(self._CREDENTIALS_FILE)
+                self.creds = store.get()
 
-            if not creds or creds.invalid:
+            if not self.creds or self.creds.invalid:
 
                 # Will ask you to authenticate an account in your browser.
                 flow = client.flow_from_clientsecrets(
                     self.client_secret_file, self._SCOPES
                 )
-                creds = tools.run_flow(flow, store)
+                self.creds = tools.run_flow(flow, store)
 
             self.service = build(
-                'gmail', 'v1', http=creds.authorize(Http()),
+                'gmail', 'v1', http=self.creds.authorize(Http()),
                 cache_discovery=False
             )
 
@@ -554,7 +563,8 @@ class Gmail(object):
         self,
         user_id: str,
         message_refs: List[dict],
-        attachments: Union['ignore', 'reference', 'download'] = 'reference'
+        attachments: Union['ignore', 'reference', 'download'] = 'reference',
+        parallel: bool = True
     ) -> List[Message]:
         """
         Retrieves the actual messages from a list of references.
@@ -564,9 +574,13 @@ class Gmail(object):
             message_refs: A list of message references with keys id, threadId.
             attachments: Accepted values are 'ignore' which completely ignores 
                 all attachments, 'reference' which includes attachment
-                information but does not download the data, and 'download' which
-                downloads the attachment data to store locally. Default
+                information but does not download the data, and 'download'
+                which downloads the attachment data to store locally. Default
                 'reference'.
+            parallel: Whether to retrieve messages in parallel. Default true.
+                Currently parallelization is always on, since there is no 
+                reason to do otherwise.
+
 
         Returns:
             A list of Message objects.
@@ -576,22 +590,58 @@ class Gmail(object):
                 HTTP request.
 
         """
+        
+        if not parallel:
+            return [self._build_message_from_ref(user_id, ref, attachments)
+                    for ref in message_refs]
 
-        return [self._build_message_from_ref(user_id, ref, attachments)
-                for ref in message_refs]
+        max_num_threads = 12  # empirically chosen, prevents throttling
+        target_msgs_per_thread = 10  # empirically chosen
+        num_threads = min(
+            math.ceil(len(message_refs) / target_msgs_per_thread),
+            max_num_threads
+        )
+        batch_size = math.ceil(len(message_refs) / num_threads)
+        message_lists = [None] * num_threads
+
+        def thread_download_batch(thread_num):
+            gmail = Gmail(_creds=self.creds)
+
+            start = thread_num * batch_size
+            end = min(len(message_refs), (thread_num + 1) * batch_size)
+            message_lists[thread_num] = [
+                gmail._build_message_from_ref(
+                    user_id, message_refs[i], attachments
+                )
+                for i in range(start, end)
+            ]
+
+        threads = [
+            threading.Thread(target=thread_download_batch, args=(i,))
+            for i in range(num_threads)
+        ]
+
+        for t in threads:
+            t.start()
+
+        for t in threads:
+            t.join()
+
+        return sum(message_lists, start=[])
 
     def _build_message_from_ref(
         self,
         user_id: str,
         message_ref: dict,
-        attachments: Union['ignore', 'reference', 'download'] = 'reference'
+        attachments: Union['ignore', 'reference', 'download'] = 'reference',
     ) -> Message:
         """
         Creates a Message object from a reference.
 
         Args:
             user_id: The username of the account the message belongs to.
-            message_ref: The message reference object return from the Gmail API.
+            message_ref: The message reference object returned from the Gmail 
+                API.
             attachments: Accepted values are 'ignore' which completely ignores 
                 all attachments, 'reference' which includes attachment
                 information but does not download the data, and 'download' which
@@ -606,6 +656,7 @@ class Gmail(object):
                 HTTP request.
 
         """
+
         try:
             # Get message JSON
             message = self.service.users().messages().get(
@@ -739,7 +790,7 @@ class Gmail(object):
         elif payload['mimeType'] == 'text/html':
             data = payload['body']['data']
             data = base64.urlsafe_b64decode(data)
-            body = BeautifulSoup(data, 'lxml').body
+            body = BeautifulSoup(data, 'lxml', from_encoding='utf-8').body
             return [{ 'part_type': 'html', 'body': str(body) }]
 
         elif payload['mimeType'] == 'text/plain':
