@@ -627,7 +627,7 @@ class Gmail(object):
         for t in threads:
             t.join()
 
-        return sum(message_lists, start=[])
+        return sum(message_lists, [])
 
     def _build_message_from_ref(
         self,
