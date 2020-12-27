@@ -292,7 +292,7 @@ def _label(label):
     return f"label:{label}"
 
 
-def _attachment_name_or_type(name_or_type):
+def _spec_attachment(name_or_type):
     """
     Returns a query item matching messages that have attachments with a
     certain name or file type.
@@ -478,7 +478,7 @@ def _attachment():
     return f"has:attachment"
 
 
-def _google_drive():
+def _drive():
     """
     Returns a query item matching messages that have Google Drive attachments.
 
@@ -487,7 +487,7 @@ def _google_drive():
     return f"has:drive"
 
 
-def _google_docs():
+def _docs():
     """
     Returns a query item matching messages that have Google Docs attachments.
 
@@ -496,7 +496,7 @@ def _google_docs():
     return f"has:document"
 
 
-def _google_sheets():
+def _sheets():
     """
     Returns a query item matching messages that have Google Sheets attachments.
 
@@ -505,7 +505,7 @@ def _google_sheets():
     return f"has:spreadsheet"
 
 
-def _google_slides():
+def _slides():
     """
     Returns a query item matching messages that have Google Slides attachments.
 
