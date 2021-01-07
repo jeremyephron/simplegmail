@@ -801,9 +801,10 @@ class Gmail(object):
 
         elif payload['mimeType'].startswith('multipart'):
             ret = []
-            for part in payload['parts']:
-                ret.extend(self._evaluate_message_payload(part, user_id, msg_id,
-                                                          attachments))
+            if 'parts' in payload:
+                for part in payload['parts']:
+                    ret.extend(self._evaluate_message_payload(part, user_id, msg_id,
+                                                              attachments))
             return ret
 
         return []
