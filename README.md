@@ -1,4 +1,4 @@
-# simple-gmail
+# simplegmail
 
 A simple Gmail API client in Python for applications.
 
