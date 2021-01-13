@@ -591,6 +591,9 @@ class Gmail(object):
 
         """
         
+        if not message_refs:
+            return []
+
         if not parallel:
             return [self._build_message_from_ref(user_id, ref, attachments)
                     for ref in message_refs]
