@@ -2,8 +2,8 @@ import setuptools
 
 setuptools.setup(
     name="simplegmail",
-    version="3.1.2",
-    url="https://github.com/jeremyephron/simple-gmail",
+    version="3.1.3",
+    url="https://github.com/jeremyephron/simplegmail",
     author="Jeremy Ephron",
     author_email="jeremyephron@gmail.com",
     description="A simple Python API client for Gmail.",
@@ -20,6 +20,7 @@ setuptools.setup(
     setup_requires=["pytest-runner"],
     tests_require=["pytest"],
     classifiers=[
+        'Development Status :: 5 - Production/Stable',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.6',
