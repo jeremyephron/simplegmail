@@ -601,6 +601,10 @@ class Gmail(object):
             math.ceil(len(message_refs) / target_msgs_per_thread),
             max_num_threads
         )
+        # Ensure there is at least one thread (prevents a ZeroDivisionError)
+        if num_threads < 1:
+            num_threads = 1
+
         batch_size = math.ceil(len(message_refs) / num_threads)
         message_lists = [None] * num_threads
 
