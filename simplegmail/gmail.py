@@ -57,23 +57,24 @@ class Gmail(object):
     # If you don't have a client secret file, follow the instructions at:
     # https://developers.google.com/gmail/api/quickstart/python
     # Make sure the client secret file is in the root directory of your app.
-    _CREDENTIALS_FILE = 'gmail_token.json'
 
     def __init__(
         self,
         client_secret_file: str = 'client_secret.json',
+        creds_file: str = 'gmail_token.json',
         _creds: Optional[client.Credentials] = None
     ) -> None:
         self.client_secret_file = client_secret_file
+        self.creds_file = creds_file
         
         try:
-            # The file gmail-token.json stores the user's access and refresh
+            # The file gmail_token.json stores the user's access and refresh
             # tokens, and is created automatically when the authorization flow
             # completes for the first time.
             if _creds:
                 self.creds = _creds
             else:
-                store = file.Storage(self._CREDENTIALS_FILE)
+                store = file.Storage(self.creds_file)
                 self.creds = store.get()
 
             if not self.creds or self.creds.invalid:
