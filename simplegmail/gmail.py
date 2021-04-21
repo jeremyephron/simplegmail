@@ -560,6 +560,41 @@ class Gmail(object):
             labels = [Label(name=x['name'], id=x['id']) for x in res['labels']]
             return labels
 
+    def create_label(self, label_name: str, user_id: str = 'me') -> Label:
+        """
+        Create a new label
+
+        Args:
+            label_name: Name for the new label
+
+            user_id: The user's email address. By default, the authenticated 
+                user.
+
+        Returns:
+            A Label object.
+
+        Raises:
+            googleapiclient.errors.HttpError: There was an error executing the 
+                HTTP request.
+
+        """
+        body = {
+            "name": label_name,
+        }
+        
+        try:
+            res = self.service.users().labels().create(
+                userId=user_id,
+                body=body
+            ).execute()
+        
+        except HttpError as error:
+            # Pass along the error
+            raise error
+        
+        else:
+            return Label(res['name'], res['id'])
+
     def _get_messages_from_refs(
         self,
         user_id: str,
