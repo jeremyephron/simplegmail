@@ -5,13 +5,16 @@ This module contains functions for constructing Gmail search queries.
 
 """
 
-def construct_query(*query_dicts, **query_terms):
+from typing import List, Tuple, Union
+
+
+def construct_query(*query_dicts, **query_terms) -> str:
     """
     Constructs a query from either:
 
-    (1) a list of dictionaries representing queries to "or"
-        (only one of the queries needs to match). Each of these dictionaries
-        should be made up of keywords as specified below.
+    (1) a list of dictionaries representing queries to "or" (only one of the 
+        queries needs to match). Each of these dictionaries should be made up 
+        of keywords as specified below.
 
         E.g.:
         construct_query(
@@ -29,9 +32,13 @@ def construct_query(*query_dicts, **query_terms):
         be and'd).
 
 
-    To negate any term, add a term "exclude_<keyword>" and set it's value
-    to True. (for example, `starred=True, exclude_starred=True` will
-    exclude all starred messages).
+    To negate any term, set it as the value of "exclude_<keyword>" instead of 
+    "<keyword>" (for example, since `labels=['finance', 'bills']` will match 
+    messages with both the 'finance' and 'bills' labels, 
+    `exclude_labels=['finance', 'bills']` will exclude messages that have both 
+    labels. To exclude either you must specify 
+    `exclude_labels=[['finance'], ['bills']]`, which negates 
+    '(finance OR bills)'.
 
     For all keywords whose values are not booleans, you can indicate you'd
     like to "and" multiple values by placing them in a tuple (), or "or"
@@ -39,87 +46,77 @@ def construct_query(*query_dicts, **query_terms):
 
     Keyword Arguments:
         sender (str): Who the message is from.
-                      E.g.: sender='someone@email.com'
-                            sender=['john@doe.com', 'jane@doe.com'] # or
+            E.g.: sender='someone@email.com'
+                  sender=['john@doe.com', 'jane@doe.com'] # OR
 
-        recipient (str): Who the message is to.
-                         E.g.: recipient='someone@email.com'
+        recipient (str): Who the message is to. 
+            E.g.: recipient='someone@email.com'
 
-        subject (str): The subject of the message.
-                       E.g.: subject='Meeting'
+        subject (str): The subject of the message. E.g.: subject='Meeting'
 
         labels (List[str]): Labels applied to the message (all must match).
-                            E.g.: labels=['Work', 'HR']
-                                  labels=[['Work', 'HR'], ['Home']] # or
+            E.g.: labels=['Work', 'HR'] # Work AND HR
+                  labels=[['Work', 'HR'], ['Home']] # (Work AND HR) OR Home
 
-        attachment (bool): The message has an attachment.
-                           E.g.: attachment=True
+        attachment (bool): The message has an attachment. E.g.: attachment=True
 
         spec_attachment (str): The message has an attachment with a
-                               specific name or file type.
-                               E.g.: spec_attachment='pdf'
-                                     spec_attachment='homework.docx'
+            specific name or file type. 
+            E.g.: spec_attachment='pdf',
+                  spec_attachment='homework.docx'
 
         exact_phrase (str): The message contains an exact phrase.
-                            E.g.: exact_phrase='I need help'
-                                  exact_phrase=('help me', 'homework') # and
+             E.g.: exact_phrase='I need help'
+                   exact_phrase=('help me', 'homework') # AND
 
-        cc (str): Recipient in the cc field.
-                  E.g.: cc='john@email.com'
+        cc (str): Recipient in the cc field. E.g.: cc='john@email.com'
 
-        bcc (str): Recipient in the bcc field.
-                   E.g.: bcc='jane@email.com'
+        bcc (str): Recipient in the bcc field. E.g.: bcc='jane@email.com'
 
-        before (str): The message was sent before a date.
-                      E.g.: before='2004/04/27'
+        before (str): The message was sent before a date. 
+            E.g.: before='2004/04/27'
 
-        after (str): The message was sent after a date.
-                     E.g.: after='2004/04/27'
+        after (str): The message was sent after a date. 
+            E.g.: after='2004/04/27'
 
         older_than (Tuple[int, str]): The message was sent before a given
-                                      time period.
-                                      E.g.: older_than=(3, "day")
-                                            older_than=(1, "month")
-                                            older_than=(2, "year")
+            time period.
+            E.g.: older_than=(3, "day")
+                  older_than=(1, "month")
+                  older_than=(2, "year")
 
         newer_than (Tuple[int, str]): The message was sent after a given
-                                      time period.
-                                      E.g.: newer_than=(3, "day")
-                                            newer_than=(1, "month")
-                                            newer_than=(2, "year")
+            time period.
+            E.g.: newer_than=(3, "day")
+                  newer_than=(1, "month")
+                  newer_than=(2, "year")
 
-        near_words (Tuple[str, str, int]): The message contains two words
-                                           near each other. (The third item
-                                           is the max number of words
-                                           between the two words).
-                                           E.g.: near_words=('CS', 'hw', 5)
+        near_words (Tuple[str, str, int]): The message contains two words near 
+            each other. (The third item is the max number of words between the 
+            two words). E.g.: near_words=('CS', 'hw', 5)
 
-        starred (bool): The message was starred.
-                        E.g.: starred=True
+        starred (bool): The message was starred. E.g.: starred=True
 
-        snoozed (bool): The message was snoozed.
-                        E.g.: snoozed=True
+        snoozed (bool): The message was snoozed. E.g.: snoozed=True
 
-        unread (bool): The message is unread.
-                       E.g.: unread=True
+        unread (bool): The message is unread. E.g.: unread=True
 
-        read (bool): The message has been read.
-                     E.g.: read=True
+        read (bool): The message has been read. E.g.: read=True
 
-        important (bool): The message was marked as important.
-                          E.g.: important=True
+        important (bool): The message was marked as important. 
+            E.g.: important=True
 
         drive (bool): The message contains a Google Drive attachment.
-                      E.g.: drive=True
+            E.g.: drive=True
 
         docs (bool): The message contains a Google Docs attachment.
-                     E.g.: docs=True
+            E.g.: docs=True
 
         sheets (bool): The message contains a Google Sheets attachment.
-                       E.g.: sheets=True
+            E.g.: sheets=True
 
         slides (bool): The message contains a Google Slides attachment.
-                       E.g.: slides=True
+            E.g.: slides=True
 
     Returns:
         The query string.
@@ -165,12 +162,12 @@ def construct_query(*query_dicts, **query_terms):
     return _and(terms)
 
 
-def _and(queries):
+def _and(queries: List[str]) -> str:
     """
-    Returns a query item matching the "and" of all query items.
+    Returns a query term matching the "and" of all query terms.
 
     Args:
-        queries (List[str]): A list of query terms to and.
+        queries: A list of query terms to and.
 
     Returns:
         The query string.
@@ -180,15 +177,15 @@ def _and(queries):
     if len(queries) == 1:
         return queries[0]
 
-    return f"({' '.join(queries)})"
+    return f'({" ".join(queries)})'
 
 
-def _or(queries):
+def _or(queries: List[str]) -> str:
     """
-    Returns a query item matching the "or" of all query items.
+    Returns a query term matching the "or" of all query terms.
 
     Args:
-        queries (List[str]): A list of query terms to or.
+        queries: A list of query terms to or.
 
     Returns:
         The query string.
@@ -198,57 +195,57 @@ def _or(queries):
     if len(queries) == 1:
         return queries[0]
 
-    return "{" + ' '.join(queries) + "}"
+    return '{' + ' '.join(queries) + '}'
 
 
-def _exclude(term):
+def _exclude(term: str) -> str:
     """
-    Returns a query item excluding messages that match the given query term.
+    Returns a query term excluding messages that match the given query term.
 
     Args:
-        term (str): The query term to be excluded.
+        term: The query term to be excluded.
 
     Returns:
         The query string.
 
     """
 
-    return f"-{term}"
+    return f'-{term}'
 
 
-def _sender(sender):
+def _sender(sender: str) -> str:
     """
-    Returns a query item matching "from".
+    Returns a query term matching "from".
 
     Args:
-        sender (str): The sender of the message.
+        sender: The sender of the message.
 
     Returns:
         The query string.
 
     """
 
-    return f"from:{sender}"
+    return f'from:{sender}'
 
 
-def _recipient(recipient):
+def _recipient(recipient: str) -> str:
     """
-    Returns a query item matching "to".
+    Returns a query term matching "to".
 
     Args:
-        recipient (str): The recipient of the message.
+        recipient: The recipient of the message.
 
     Returns:
         The query string.
 
     """
 
-    return f"to:{recipient}"
+    return f'to:{recipient}'
 
 
-def _subject(subject):
+def _subject(subject: str) -> str:
     """
-    Returns a query item matching "subject".
+    Returns a query term matching "subject".
 
     Args:
         subject: The subject of the message.
@@ -258,16 +255,16 @@ def _subject(subject):
 
     """
 
-    return f"subject:{subject}"
+    return f'subject:{subject}'
 
-def _labels(labels):
+def _labels(labels: Union[List[str], str]) -> str:
     """
-    Returns a query item matching a multiple labels.
+    Returns a query term matching a multiple labels.
 
     Works with a single label (str) passed in, instead of the expected list.
 
     Args:
-        labels (List[str]): A list of labels the message must have applied.
+        labels: A list of labels the message must have applied.
 
     Returns:
         The query string.
@@ -279,45 +276,44 @@ def _labels(labels):
 
     return _and([_label(label) for label in labels])
 
-def _label(label):
+
+def _label(label: str) -> str:
     """
-    Returns a query item matching a label.
+    Returns a query term matching a label.
 
     Args:
-        label (str): The label the message must have applied.
+        label: The label the message must have applied.
 
     Returns:
         The query string.
 
     """
 
-    return f"label:{label}"
+    return f'label:{label}'
 
 
-def _spec_attachment(name_or_type):
+def _spec_attachment(name_or_type: str) -> str:
     """
-    Returns a query item matching messages that have attachments with a
+    Returns a query term matching messages that have attachments with a
     certain name or file type.
 
     Args:
-        name_or_type (str): The specific name of file type to match.
-
+        name_or_type: The specific name of file type to match.
 
     Returns:
         The query string.
 
     """
 
-    return f"filename:{name_or_type}"
+    return f'filename:{name_or_type}'
 
 
-def _exact_phrase(phrase):
+def _exact_phrase(phrase: str) -> str:
     """
-    Returns a query item matching messages that have an exact phrase.
+    Returns a query term matching messages that have an exact phrase.
 
     Args:
-        phrase (str): The exact phrase to match.
-
+        phrase: The exact phrase to match.
 
     Returns:
         The query string.
@@ -327,190 +323,195 @@ def _exact_phrase(phrase):
     return f'"{phrase}"'
 
 
-def _starred():
-    """Returns a query item matching messages that are starred."""
+def _starred() -> str:
+    """Returns a query term matching messages that are starred."""
 
-    return f"is:starred"
-
-
-def _snoozed():
-    """Returns a query item matching messages that are snoozed."""
-
-    return f"is:snoozed"
+    return 'is:starred'
 
 
-def _unread():
-    """Returns a query item matching messages that are unread."""
+def _snoozed() -> str:
+    """Returns a query term matching messages that are snoozed."""
 
-    return f"is:unread"
-
-
-def _read():
-    """Returns a query item matching messages that are read."""
-
-    return f"is:read"
+    return 'is:snoozed'
 
 
-def _important():
-    """Returns a query item matching messages that are important."""
+def _unread() -> str:
+    """Returns a query term matching messages that are unread."""
 
-    return f"is:important"
+    return 'is:unread'
 
 
-def _cc(recipient):
+def _read() -> str:
+    """Returns a query term matching messages that are read."""
+
+    return 'is:read'
+
+
+def _important() -> str:
+    """Returns a query term matching messages that are important."""
+
+    return 'is:important'
+
+
+def _cc(recipient: str) -> str:
     """
-    Returns a query item matching messages that have certain recipients in
+    Returns a query term matching messages that have certain recipients in
     the cc field.
 
     Args:
-        recipient (str): The recipient in the cc field to match.
+        recipient: The recipient in the cc field to match.
 
     Returns:
         The query string.
 
     """
 
-    return f"cc:{recipient}"
+    return f'cc:{recipient}'
 
 
-def _bcc(recipient):
+def _bcc(recipient: str) -> str:
     """
-    Returns a query item matching messages that have certain recipients in
+    Returns a query term matching messages that have certain recipients in
     the bcc field.
 
     Args:
-        recipient (str): The recipient in the bcc field to match.
+        recipient: The recipient in the bcc field to match.
 
     Returns:
         The query string.
 
     """
 
-    return f"bcc:{recipient}"
+    return f'bcc:{recipient}'
 
 
-def _after(date):
+def _after(date: str) -> str:
     """
-    Returns a query item matching messages sent after a given date.
+    Returns a query term matching messages sent after a given date.
 
     Args:
-        date (str): The date messages must be sent after.
+        date: The date messages must be sent after.
 
     Returns:
         The query string.
 
     """
 
-    return f"after:{date}"
+    return f'after:{date}'
 
 
-def _before(date):
+def _before(date: str) -> str:
     """
-    Returns a query item matching messages sent before a given date.
+    Returns a query term matching messages sent before a given date.
 
     Args:
-        date (str): The date messages must be sent before.
+        date: The date messages must be sent before.
 
     Returns:
         The query string.
 
     """
 
-    return f"before:{date}"
+    return f'before:{date}'
 
 
-def _older_than(number, unit):
+def _older_than(number: int, unit: str) -> str:
     """
-    Returns a query item matching messages older than a time period.
+    Returns a query term matching messages older than a time period.
 
     Args:
-        number (int): The number of units of time of the period.
-        unit (str): The unit of time: "day", "month", or "year".
+        number: The number of units of time of the period.
+        unit: The unit of time: "day", "month", or "year".
 
     Returns:
         The query string.
 
     """
 
-    return f"older_than:{number}{unit[0]}"
+    return f'older_than:{number}{unit[0]}'
 
 
-def _newer_than(number, unit):
+def _newer_than(number: int, unit: str) -> str:
     """
-    Returns a query item matching messages newer than a time period.
+    Returns a query term matching messages newer than a time period.
 
     Args:
-        number (int): The number of units of time of the period.
-        unit (str): The unit of time: "day", "month", or "year".
+        number: The number of units of time of the period.
+        unit: The unit of time: 'day', 'month', or 'year'.
 
     Returns:
         The query string.
 
     """
 
-    return f"newer_than:{number}{unit[0]}"
+    return f'newer_than:{number}{unit[0]}'
 
 
-def _near_words(first, second, distance, exact=False):
+def _near_words(
+    first: str, 
+    second: str, 
+    distance: int,
+    exact: bool = False
+) -> str:
     """
-    Returns a query item matching messages that two words within a certain
+    Returns a query term matching messages that two words within a certain
     distance of each other.
 
     Args:
-        first (str): The first word to search for.
-        second (str): The second word to search for.
-        distance (int): How many words apart first and second can be.
-        exact (bool): Whether first must come before second [default False].
+        first: The first word to search for.
+        second: The second word to search for.
+        distance: How many words apart first and second can be.
+        exact: Whether first must come before second [default False].
 
     Returns:
         The query string.
 
     """
 
-    query = f"{first} AROUND {distance} {second}"
+    query = f'{first} AROUND {distance} {second}'
     if exact:
         query = '"' + query + '"'
 
     return query
 
 
-def _attachment():
-    """Returns a query item matching messages that have attachments."""
+def _attachment() -> str:
+    """Returns a query term matching messages that have attachments."""
 
-    return f"has:attachment"
+    return 'has:attachment'
 
 
-def _drive():
+def _drive() -> str:
     """
-    Returns a query item matching messages that have Google Drive attachments.
-
-    """
-
-    return f"has:drive"
-
-
-def _docs():
-    """
-    Returns a query item matching messages that have Google Docs attachments.
+    Returns a query term matching messages that have Google Drive attachments.
 
     """
 
-    return f"has:document"
+    return 'has:drive'
 
 
-def _sheets():
+def _docs() -> str:
     """
-    Returns a query item matching messages that have Google Sheets attachments.
-
-    """
-
-    return f"has:spreadsheet"
-
-
-def _slides():
-    """
-    Returns a query item matching messages that have Google Slides attachments.
+    Returns a query term matching messages that have Google Docs attachments.
 
     """
 
-    return f"has:presentation"
+    return 'has:document'
+
+
+def _sheets() -> str:
+    """
+    Returns a query term matching messages that have Google Sheets attachments.
+
+    """
+
+    return 'has:spreadsheet'
+
+
+def _slides() -> str:
+    """
+    Returns a query term matching messages that have Google Slides attachments.
+
+    """
+
+    return 'has:presentation'
