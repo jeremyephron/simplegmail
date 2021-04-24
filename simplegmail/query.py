@@ -131,8 +131,10 @@ def construct_query(*query_dicts, **query_terms):
 
     terms = []
     for key, val in query_terms.items():
+        exclude = False
         if key.startswith('exclude'):
-            continue
+            exclude = True
+            key = key[len('exclude_'):]
 
         query_fn = globals()[f"_{key}"]
         conjunction = _and if isinstance(val, tuple) else _or
@@ -155,7 +157,7 @@ def construct_query(*query_dicts, **query_terms):
         else:
             term = query_fn(val) if not isinstance(val, bool) else query_fn()
 
-        if f'exclude_{key}' in query_terms:
+        if exclude:
             term = _exclude(term)
 
         terms.append(term)
