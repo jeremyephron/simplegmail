@@ -502,7 +502,8 @@ class Gmail(object):
             response = self.service.users().messages().list(
                 userId=user_id,
                 q=query,
-                labelIds=labels_ids
+                labelIds=labels_ids,
+                includeSpamTrash=include_spam_trash
             ).execute()
 
             message_refs = []
@@ -515,6 +516,7 @@ class Gmail(object):
                     userId=user_id,
                     q=query,
                     labelIds=labels_ids,
+                    includeSpamTrash=include_spam_trash,
                     pageToken=page_token
                 ).execute()
 
