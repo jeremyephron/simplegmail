@@ -674,7 +674,7 @@ class Gmail(object):
         self,
         user_id: str,
         message_ref: dict,
-        attachments: Union['ignore', 'reference', 'download'] = 'reference',
+        attachments: Union['ignore', 'reference', 'download'] = 'reference'
     ) -> Message:
         """
         Creates a Message object from a reference.
@@ -725,6 +725,7 @@ class Gmail(object):
             sender = ''
             recipient = ''
             subject = ''
+            msg_hdrs = {}
             for hdr in headers:
                 if hdr['name'] == 'Date':
                     try:
@@ -737,6 +738,8 @@ class Gmail(object):
                     recipient = hdr['value']
                 elif hdr['name'] == 'Subject':
                     subject = hdr['value']
+                
+                msg_hdrs[hdr['name']] = hdr['value']
 
             parts = self._evaluate_message_payload(
                 payload, user_id, message_ref['id'], attachments
@@ -764,7 +767,7 @@ class Gmail(object):
 
             return Message(self.service, user_id, msg_id, thread_id, recipient, 
                 sender, subject, date, snippet, plain_msg, html_msg, label_ids,
-                attms)
+                attms, msg_hdrs)
 
     def _evaluate_message_payload(
         self,
