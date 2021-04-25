@@ -16,8 +16,8 @@ from simplegmail.label import Label
 
 class Message(object):
     """
-    The Message class for emails in your Gmail mailbox. This class should not be
-    manually constructed. Contains all information about the associated 
+    The Message class for emails in your Gmail mailbox. This class should not 
+    be manually constructed. Contains all information about the associated 
     message, and can be used to modify the message's labels (e.g., marking as
     read/unread, archiving, moving to trash, starring, etc.).
 
@@ -66,7 +66,8 @@ class Message(object):
         plain: Optional[str] = None,
         html: Optional[str] = None,
         label_ids: Optional[List[str]] = None,
-        attachments: Optional[List[Attachment]] = None
+        attachments: Optional[List[Attachment]] = None,
+        headers: Optional[dict] = None
     ) -> None:
         self._service = service
         self.user_id = user_id
@@ -81,6 +82,7 @@ class Message(object):
         self.html = html
         self.label_ids = label_ids if label_ids is not None else []
         self.attachments = attachments if attachments is not None else []
+        self.headers = headers if headers else {}
 
     def __repr__(self) -> str:
         """Represents the object by its sender, recipient, and id."""
