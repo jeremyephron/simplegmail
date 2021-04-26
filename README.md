@@ -274,7 +274,6 @@ query_params_2 = {
     "newer_than": (1, "month"),
     "unread": True,
     "labels": ["Top Secret"],
-    "starred": True,
     "exclude_starred": True
 }
 
