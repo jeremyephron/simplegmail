@@ -142,7 +142,7 @@ class Gmail(object):
 
         msg = self._create_message(
             sender, to, subject, msg_html, msg_plain, cc=cc, bcc=bcc,
-            attachments=attachments, signature=signature
+            attachments=attachments, signature=signature, user_id=user_id
         )
 
         try:
@@ -863,7 +863,8 @@ class Gmail(object):
         cc: List[str] = None,
         bcc: List[str] = None,
         attachments: List[str] = None,
-        signature: bool = False
+        signature: bool = False,
+        user_id: str = 'me'
     ) -> dict:
         """
         Creates the raw email message to be sent.
@@ -899,7 +900,10 @@ class Gmail(object):
             msg['Bcc'] = ', '.join(bcc)
 
         if signature:
-            account_sig = self._get_alias_info(sender, 'me')['signature']
+            if user_id != 'me':
+                account_sig = self._get_alias_info(user_id, 'me')['signature']
+            else:
+                account_sig = self._get_alias_info(sender, user_id)['signature']
             if msg_html is None:
                 msg_html = ''
 
