@@ -18,6 +18,7 @@ import html         # for html.unescape
 import math         # for math.ceil
 import mimetypes    # for mimetypes.guesstype
 import os           # for os.path.basename
+import re           # for re.match
 import threading    # for threading.Thread
 from typing import List, Optional, Union
 
@@ -865,10 +866,10 @@ class Gmail(object):
             msg['Bcc'] = ', '.join(bcc)
 
         if signature:
-            if user_id != 'me':
-                account_sig = self._get_alias_info(user_id, 'me')['signature']
-            else:
-                account_sig = self._get_alias_info(sender, user_id)['signature']
+            m = re.match(r'.+\s<(?P<addr>.+@.+\..+)>', sender)
+            address = m.group('addr') if m else sender
+            account_sig = self._get_alias_info(address, user_id)['signature']
+
             if msg_html is None:
                 msg_html = ''
 
