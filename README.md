@@ -1,21 +1,23 @@
-# simplegmail
-
+# SimpleGmail
 A simple Gmail API client in Python for applications.
 
-Currently Supported Behavior:
-- Sending html messages
+The official Gmail API can often be confusing and difficult to use—this package makes it simple.
+
+Supported Behavior:
+- Sending plaintext or HTML messages
 - Sending messages with attachments
 - Sending messages with your Gmail account signature
 - Retrieving messages with the full suite of Gmail's search capabilities
-- Retrieving messages with attachments, and downloading attachments
+- Retrieving messages with attachments
 - Modifying message labels (includes marking as read/unread, important/not 
   important, starred/unstarred, trash/untrash, inbox/archive)
+- ...and more!
 
 ## Table of Contents
 
 - [Getting Started](#getting-started)
 - [Installation](#installation)
-- [Usage](#usage)
+- [Basic Usage](#usage)
     - [Send a simple message](#send-a-simple-message)
     - [Send a message with attachments, cc, bcc fields](#send-a-message-with-attachments-cc-bcc-fields)
     - [Retrieving messages](#retrieving-messages)
@@ -24,7 +26,9 @@ Currently Supported Behavior:
     - [Downloading attachments](#downloading-attachments)
     - [Retrieving messages with queries](#retrieving-messages-advanced-with-queries)
     - [Retrieving messages with more advanced queries](#retrieving-messages-more-advanced-with-more-queries)
+- [Documentation](#documentation)
 - [Feedback](#feedback)
+- [Contributing](#contributing)
 
 ## Getting Started
 
@@ -72,30 +76,32 @@ significantly safer and avoids clashing with Google's many security measures.
 Install using `pip` (Python3).
 
 ```bash
-pip3 install simplegmail
+python3 -m pip install simplegmail
 ```
 
 ## Usage
 
 ### Send a simple message:
 
-```python
+```python3
 from simplegmail import Gmail
 
-gmail = Gmail() # will open a browser window to ask you to log in and authenticate
+gmail = Gmail()  # will open a browser window to ask you to log in and authenticate
 
 params = {
-  "to": "you@youremail.com",
-  "sender": "me@myemail.com",
-  "subject": "My first email",
-  "msg_html": "<h1>Woah, my first email!</h1><br />This is an HTML email.",
-  "msg_plain": "Hi\nThis is a plain text email.",
-  "signature": True  # use my account signature
+  'to': 'you@youremail.com',
+  'sender': 'me@myemail.com',
+  'subject': 'My first email',
+  'msg_html': '<h1>Woah, my first email!</h1><br />The possibilities are <em>endless</em>.',
+  'msg_plain': 'Woah, my first email!\nThe possibilities are endless.',
+  'signature': True  # use my account signature
 }
-message = gmail.send_message(**params)  # equivalent to send_message(to="you@youremail.com", sender=...)
+message = gmail.send_message(**params)  # equivalent to send_message(to='you@youremail.com', sender=...)
 ```
 
-### Send a message with attachments, cc, bcc fields:
+You've just sent your first email in Python!
+
+### Send a message with attachments, cc, and bcc fields:
 
 ```python
 from simplegmail import Gmail
@@ -103,17 +109,17 @@ from simplegmail import Gmail
 gmail = Gmail()
 
 params = {
-  "to": "you@youremail.com",
-  "sender": "me@myemail.com",
-  "cc": ["bob@bobsemail.com"],
-  "bcc": ["marie@gossip.com", "hidden@whereami.com"],
-  "subject": "My first email",
-  "msg_html": "<h1>Woah, my first email!</h1><br />This is an HTML email.",
-  "msg_plain": "Hi\nThis is a plain text email.",
-  "attachments": ["path/to/something/cool.pdf", "path/to/image.jpg", "path/to/script.py"],
-  "signature": True  # use my account signature
+  'to": 'you@youremail.com',
+  'sender': 'me@myemail.com',
+  'cc": ['bob@bobsburgers.com'],
+  'bcc": ['marie@gossip.com', 'hidden@whereami.com'],
+  'subject': 'My first email',
+  'msg_html': '<h1>Woah, my first email!</h1><br />The possibilities are <em>endless</em>.',
+  'msg_plain': 'Woah, my first email!\nThe possibilities are endless.',
+  'attachments': ['path/to/something/cool.pdf', "path/to/image.jpg', 'path/to/script.py'],
+  'signature': True  # use my account signature
 }
-message = gmail.send_message(**params)  # equivalent to send_message(to="you@youremail.com", sender=...)
+message = gmail.send_message(**params)  # equivalent to send_message(to='you@youremail.com', sender=...)
 ```
 
 It couldn't be easier!
@@ -277,7 +283,11 @@ messages = gmail.get_messages(query=construct_query(query_params_1, query_params
 
 For more on what you can do with queries, read the docstring for `construct_query()` in `query.py`.
 
+## Documentation
+
 ## Feedback
 
 If there is functionality you'd like to see added, or any bugs in this project,
 please let me know by posting an issue or submitting a pull request!
+
+## Contributing
