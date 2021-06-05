@@ -693,16 +693,16 @@ class Gmail(object):
             subject = ''
             msg_hdrs = {}
             for hdr in headers:
-                if hdr['name'] == 'Date':
+                if hdr['name'].lower() == 'date':
                     try:
                         date = str(parser.parse(hdr['value']).astimezone())
                     except Exception:
                         date = hdr['value']
-                elif hdr['name'] == 'From':
+                elif hdr['name'].lower() == 'from':
                     sender = hdr['value']
-                elif hdr['name'] == 'To':
+                elif hdr['name'].lower() == 'to':
                     recipient = hdr['value']
-                elif hdr['name'] == 'Subject':
+                elif hdr['name'].lower() == 'subject':
                     subject = hdr['value']
                 
                 msg_hdrs[hdr['name']] = hdr['value']
