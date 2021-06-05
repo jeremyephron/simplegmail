@@ -116,7 +116,7 @@ params = {
   'subject': 'My first email',
   'msg_html': '<h1>Woah, my first email!</h1><br />The possibilities are <em>endless</em>.',
   'msg_plain': 'Woah, my first email!\nThe possibilities are endless.',
-  'attachments': ['path/to/something/cool.pdf', "path/to/image.jpg', 'path/to/script.py'],
+  'attachments': ['path/to/something/cool.pdf', 'path/to/image.jpg', 'path/to/script.py'],
   'signature': True  # use my account signature
 }
 message = gmail.send_message(**params)  # equivalent to send_message(to='you@youremail.com', sender=...)
@@ -137,17 +137,17 @@ messages = gmail.get_unread_inbox()
 # Starred messages
 messages = gmail.get_starred_messages()
 
-# ...and many more easy to use functions can be found in gmail.py!
+# ...and many more easy to use functions can be found in gmail.py and in the wiki!
 
 # Print them out!
 for message in messages:
-    print("To: " + message.recipient)
-    print("From: " + message.sender)
-    print("Subject: " + message.subject)
-    print("Date: " + message.date)
-    print("Preview: " + message.snippet)
+    print('To: ' + message.recipient)
+    print('From: ' + message.sender)
+    print('Subject: ' + message.subject)
+    print('Date: ' + message.date)
+    print('Preview: ' + message.snippet)
     
-    print("Message Body: " + message.plain)  # or message.html
+    print('Message Body: ' + message.plain)  # or message.html
 ```
 
 ### Marking messages:
