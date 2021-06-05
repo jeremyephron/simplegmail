@@ -103,16 +103,16 @@ You've just sent your first email in Python!
 
 ### Send a message with attachments, cc, and bcc fields:
 
-```python
+```python3
 from simplegmail import Gmail
 
 gmail = Gmail()
 
 params = {
-  'to": 'you@youremail.com',
+  'to': 'you@youremail.com',
   'sender': 'me@myemail.com',
-  'cc": ['bob@bobsburgers.com'],
-  'bcc": ['marie@gossip.com', 'hidden@whereami.com'],
+  'cc': ['bob@bobsburgers.com'],
+  'bcc': ['marie@gossip.com', 'hidden@whereami.com'],
   'subject': 'My first email',
   'msg_html': '<h1>Woah, my first email!</h1><br />The possibilities are <em>endless</em>.',
   'msg_plain': 'Woah, my first email!\nThe possibilities are endless.',
