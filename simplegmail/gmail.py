@@ -62,7 +62,7 @@ class Gmail(object):
         self,
         client_secret_file: str = 'client_secret.json',
         creds_file: str = 'gmail_token.json',
-        _creds: Optional[client.Credentials] = None
+        _creds: Optional[client.OAuth2Credentials] = None
     ) -> None:
         self.client_secret_file = client_secret_file
         self.creds_file = creds_file
@@ -100,7 +100,7 @@ class Gmail(object):
             )
 
     @property
-    def service(self) -> "googleapiclient.discovery.Resource":
+    def service(self) -> 'googleapiclient.discovery.Resource':
         # Since the token is only used through calls to the service object,
         # this ensure that the token is always refreshed before use.
         if self.creds.access_token_expired:
@@ -739,9 +739,9 @@ class Gmail(object):
                                       part['filetype'], part['data'])
                     attms.append(attm)
 
-            return Message(self.service, user_id, msg_id, thread_id, recipient,
-                sender, subject, date, snippet, plain_msg, html_msg, label_ids,
-                attms, msg_hdrs)
+            return Message(self.service, self.creds, user_id, msg_id,
+                thread_id, recipient, sender, subject, date, snippet,
+                plain_msg, html_msg, label_ids, attms, msg_hdrs)
 
     def _evaluate_message_payload(
         self,
