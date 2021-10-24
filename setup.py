@@ -2,10 +2,10 @@ import setuptools
 
 setuptools.setup(
     name="simplegmail",
-    version="4.0.3",
+    version="4.0.4",
     url="https://github.com/jeremyephron/simplegmail",
     author="Jeremy Ephron",
-    author_email="jeremyephron@gmail.com",
+    author_email="jeremye@cs.stanford.edu",
     description="A simple Python API client for Gmail.",
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
