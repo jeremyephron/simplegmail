@@ -2,10 +2,6 @@
 
 A simple Gmail API client in Python for applications.
 
-## New in v3.1.0
-
-Message downloading has been multithreaded resulting in significant speedup of downloads! Make sure to upgrade your installation (no other changes are required).
-
 ---
 
 Currently Supported Behavior:
