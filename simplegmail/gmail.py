@@ -19,7 +19,7 @@ import mimetypes
 import os
 import re
 import threading
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from bs4 import BeautifulSoup
 import dateutil.parser as parser
@@ -474,13 +474,14 @@ class Gmail(object):
         return self.get_messages(user_id, labels, query, attachments, True)
 
     def get_messages(
-        self,
-        user_id: str = 'me',
-        labels: Optional[List[Label]] = None,
-        query: str = '',
-        attachments: str = 'reference',
-        include_spam_trash: bool = False
-    ) -> List[Message]:
+            self,
+            user_id: str = 'me',
+            labels: Optional[List[Label]] = None,
+            query: str = '',
+            attachments: str = 'reference',
+            include_spam_trash: bool = False,
+            refs_only: bool = False
+    ) -> Union[List[Message], List[dict]]:
         """
         Gets messages from your account.
 
@@ -535,6 +536,9 @@ class Gmail(object):
                 ).execute()
 
                 message_refs.extend(response['messages'])
+            if refs_only:
+                # Do not fetch messages yet
+                return message_refs
 
             return self._get_messages_from_refs(user_id, message_refs,
                                                 attachments)
@@ -648,6 +652,9 @@ class Gmail(object):
             t.join()
 
         return sum(message_lists, [])
+
+    # Public alias
+    get_messsages_from_refs = _get_messages_from_refs
 
     def _build_message_from_ref(
         self,

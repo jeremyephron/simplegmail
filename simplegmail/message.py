@@ -36,6 +36,7 @@ class Message(object):
         html: the HTML contents of the message. Default None.
         label_ids: the ids of labels associated with this message. Default [].
         attachments: a list of attachments for the message. Default [].
+        raw_response: the origin response from google API
 
     Attributes:
         _service (googleapiclient.discovery.Resource): the Gmail service object.
@@ -54,22 +55,23 @@ class Message(object):
     """
 
     def __init__(
-        self,
-        service: 'googleapiclient.discovery.Resource',
-        creds: 'oauth2client.client.OAuth2Credentials',
-        user_id: str,
-        msg_id: str,
-        thread_id: str,
-        recipient: str,
-        sender: str,
-        subject: str,
-        date: str,
-        snippet,
-        plain: Optional[str] = None,
-        html: Optional[str] = None,
-        label_ids: Optional[List[str]] = None,
-        attachments: Optional[List[Attachment]] = None,
-        headers: Optional[dict] = None
+            self,
+            service: 'googleapiclient.discovery.Resource',
+            creds: 'oauth2client.client.OAuth2Credentials',
+            user_id: str,
+            msg_id: str,
+            thread_id: str,
+            recipient: str,
+            sender: str,
+            subject: str,
+            date: str,
+            snippet,
+            plain: Optional[str] = None,
+            html: Optional[str] = None,
+            label_ids: Optional[List[str]] = None,
+            attachments: Optional[List[Attachment]] = None,
+            headers: Optional[dict] = None,
+            raw_response: Optiona[dict] = None,
     ) -> None:
         self._service = service
         self.creds = creds
@@ -86,6 +88,7 @@ class Message(object):
         self.label_ids = label_ids if label_ids is not None else []
         self.attachments = attachments if attachments is not None else []
         self.headers = headers if headers else {}
+        self.raw_response = raw_response if raw_response else {}
 
     @property
     def service(self) -> 'googleapiclient.discovery.Resource':
