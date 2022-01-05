@@ -59,10 +59,11 @@ class Gmail(object):
     # Make sure the client secret file is in the root directory of your app.
 
     def __init__(
-        self,
-        client_secret_file: str = 'client_secret.json',
-        creds_file: str = 'gmail_token.json',
-        _creds: Optional[client.OAuth2Credentials] = None
+            self,
+            client_secret_file: str = 'client_secret.json',
+            creds_file: str = 'gmail_token.json',
+            _creds: Optional[client.OAuth2Credentials] = None,
+            access_type: str = 'offline',
     ) -> None:
         self.client_secret_file = client_secret_file
         self.creds_file = creds_file
@@ -83,6 +84,8 @@ class Gmail(object):
                 flow = client.flow_from_clientsecrets(
                     self.client_secret_file, self._SCOPES
                 )
+                flow.params['approval_prompt'] = 'force'
+                flow.params['access_type'] = access_type
                 flags = tools.argparser.parse_args([])
                 self.creds = tools.run_flow(flow, store, flags)
 
