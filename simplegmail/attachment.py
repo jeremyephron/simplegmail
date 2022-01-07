@@ -6,9 +6,10 @@ This module contains the implementation of the Attachment object.
 """
 
 import base64  # for base64.urlsafe_b64decode
-import os      # for os.path.exists
+import os  # for os.path.exists
 import pathlib
 from typing import Optional
+
 
 class Attachment(object):
     """
@@ -37,13 +38,13 @@ class Attachment(object):
 
     def __init__(
         self,
-        service: 'googleapiclient.discovery.Resource',
+        service: "googleapiclient.discovery.Resource",
         user_id: str,
         msg_id: str,
         att_id: str,
         filename: str,
         filetype: str,
-        data: Optional[bytes] = None
+        data: Optional[bytes] = None,
     ) -> None:
         self._service = service
         self.user_id = user_id
@@ -66,18 +67,18 @@ class Attachment(object):
         if self.data is not None:
             return
 
-        res = self._service.users().messages().attachments().get(
-            userId=self.user_id, messageId=self.msg_id, id=self.id
-        ).execute()
+        res = (
+            self._service.users()
+            .messages()
+            .attachments()
+            .get(userId=self.user_id, messageId=self.msg_id, id=self.id)
+            .execute()
+        )
 
-        data = res['data']
+        data = res["data"]
         self.data = base64.urlsafe_b64decode(data)
 
-    def save(
-        self,
-        filepath: Optional[str] = None,
-        overwrite: bool = False
-    ) -> None:
+    def save(self, filepath: Optional[str] = None, overwrite: bool = False) -> None:
         """
         Saves the attachment. Downloads file data if not downloaded.
 
@@ -104,6 +105,8 @@ class Attachment(object):
                 f"you would like to overwrite the file."
             )
 
-        pathlib.Path(pathlib.PurePath(filepath).parent).mkdir(parents=True, exist_ok=True)
-        with open(filepath, 'wb') as f:
+        pathlib.Path(pathlib.PurePath(filepath).parent).mkdir(
+            parents=True, exist_ok=True
+        )
+        with open(filepath, "wb") as f:
             f.write(self.data)

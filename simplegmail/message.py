@@ -56,23 +56,23 @@ class Message(object):
     """
 
     def __init__(
-            self,
-            service: 'googleapiclient.discovery.Resource',
-            creds: 'oauth2client.client.OAuth2Credentials',
-            user_id: str,
-            msg_id: str,
-            thread_id: str,
-            recipient: str,
-            sender: str,
-            subject: str,
-            date: str,
-            snippet,
-            plain: Optional[str] = None,
-            html: Optional[str] = None,
-            label_ids: Optional[List[str]] = None,
-            attachments: Optional[List[Attachment]] = None,
-            headers: Optional[dict] = None,
-            raw_response: Optional[dict] = None,
+        self,
+        service: "googleapiclient.discovery.Resource",
+        creds: "oauth2client.client.OAuth2Credentials",
+        user_id: str,
+        msg_id: str,
+        thread_id: str,
+        recipient: str,
+        sender: str,
+        subject: str,
+        date: str,
+        snippet,
+        plain: Optional[str] = None,
+        html: Optional[str] = None,
+        label_ids: Optional[List[str]] = None,
+        attachments: Optional[List[Attachment]] = None,
+        headers: Optional[dict] = None,
+        raw_response: Optional[dict] = None,
     ) -> None:
         self._service = service
         self.creds = creds
@@ -92,7 +92,7 @@ class Message(object):
         self.raw_response = raw_response if raw_response else {}
 
     @property
-    def service(self) -> 'googleapiclient.discovery.Resource':
+    def service(self) -> "googleapiclient.discovery.Resource":
         if self.creds.access_token_expired:
             self.creds.refresh(Http())
 
@@ -101,9 +101,7 @@ class Message(object):
     def __repr__(self) -> str:
         """Represents the object by its sender, recipient, and id."""
 
-        return (
-            f'Message(to: {self.recipient}, from: {self.sender}, id: {self.id})'
-        )
+        return f"Message(to: {self.recipient}, from: {self.sender}, id: {self.id})"
 
     def mark_as_read(self) -> None:
         """
@@ -232,19 +230,26 @@ class Message(object):
         """
 
         try:
-            res = self._service.users().messages().trash(
-                userId=self.user_id, id=self.id,
-            ).execute()
+            res = (
+                self._service.users()
+                .messages()
+                .trash(
+                    userId=self.user_id,
+                    id=self.id,
+                )
+                .execute()
+            )
 
         except HttpError as error:
             # Pass error along
             raise error
 
         else:
-            assert label.TRASH in res['labelIds'], \
-                f'An error occurred in a call to `trash`.'
+            assert (
+                label.TRASH in res["labelIds"]
+            ), f"An error occurred in a call to `trash`."
 
-            self.label_ids = res['labelIds']
+            self.label_ids = res["labelIds"]
 
     def untrash(self) -> None:
         """
@@ -257,19 +262,26 @@ class Message(object):
         """
 
         try:
-            res = self._service.users().messages().untrash(
-                userId=self.user_id, id=self.id,
-            ).execute()
+            res = (
+                self._service.users()
+                .messages()
+                .untrash(
+                    userId=self.user_id,
+                    id=self.id,
+                )
+                .execute()
+            )
 
         except HttpError as error:
             # Pass error along
             raise error
 
         else:
-            assert label.TRASH not in res['labelIds'], \
-                f'An error occurred in a call to `untrash`.'
+            assert (
+                label.TRASH not in res["labelIds"]
+            ), f"An error occurred in a call to `untrash`."
 
-            self.label_ids = res['labelIds']
+            self.label_ids = res["labelIds"]
 
     def move_from_inbox(self, to: Union[Label, str]) -> None:
         """
@@ -317,11 +329,11 @@ class Message(object):
         self.modify_labels(to_add, [])
 
     def json(self, indent: int = 4):
-        """ Returns the original response from Google as Json"""
+        """Returns the original response from Google as Json"""
         return json.dumps(self.raw_response, indent=indent)
 
     def dump(self, filepath: str):
-        with open(filepath, 'w') as fname:
+        with open(filepath, "w") as fname:
             fname.write(self.json())
         return filepath
 
@@ -358,7 +370,7 @@ class Message(object):
     def modify_labels(
         self,
         to_add: Union[Label, str, List[Label], List[str]],
-        to_remove: Union[Label, str, List[Label], List[str]]
+        to_remove: Union[Label, str, List[Label], List[str]],
     ) -> None:
         """
         Adds or removes the specified label.
@@ -380,26 +392,32 @@ class Message(object):
             to_remove = [to_remove]
 
         try:
-            res = self._service.users().messages().modify(
-                userId=self.user_id, id=self.id,
-                body=self._create_update_labels(to_add, to_remove)
-            ).execute()
+            res = (
+                self._service.users()
+                .messages()
+                .modify(
+                    userId=self.user_id,
+                    id=self.id,
+                    body=self._create_update_labels(to_add, to_remove),
+                )
+                .execute()
+            )
 
         except HttpError as error:
             # Pass along error
             raise error
 
         else:
-            assert all([lbl in res['labelIds'] for lbl in to_add]) \
-                and all([lbl not in res['labelIds'] for lbl in to_remove]), \
-                'An error occurred while modifying message label.'
+            assert all([lbl in res["labelIds"] for lbl in to_add]) and all(
+                [lbl not in res["labelIds"] for lbl in to_remove]
+            ), "An error occurred while modifying message label."
 
-            self.label_ids = res['labelIds']
+            self.label_ids = res["labelIds"]
 
     def _create_update_labels(
         self,
         to_add: Union[List[Label], List[str]] = None,
-        to_remove: Union[List[Label], List[str]] = None
+        to_remove: Union[List[Label], List[str]] = None,
     ) -> dict:
         """
         Creates an object for updating message label.
@@ -420,10 +438,10 @@ class Message(object):
             to_remove = []
 
         return {
-            'addLabelIds': [
+            "addLabelIds": [
                 lbl.id if isinstance(lbl, Label) else lbl for lbl in to_add
             ],
-            'removeLabelIds': [
+            "removeLabelIds": [
                 lbl.id if isinstance(lbl, Label) else lbl for lbl in to_remove
-            ]
+            ],
         }
