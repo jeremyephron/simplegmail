@@ -64,10 +64,12 @@ class Gmail(object):
             creds_file: str = 'gmail_token.json',
             _creds: Optional[client.OAuth2Credentials] = None,
             access_type: str = 'offline',
+            user_id: str = 'me'
     ) -> None:
         self.client_secret_file = client_secret_file
         self.creds_file = creds_file
-
+        self._labels = None
+        self.user_id = user_id
         try:
             # The file gmail_token.json stores the user's access and refresh
             # tokens, and is created automatically when the authorization flow
@@ -546,6 +548,23 @@ class Gmail(object):
             # Pass along the error
             raise error
 
+    def get_label_id(self, key: str, refresh: bool = True):
+        if key not in self.labels:
+            if refresh:
+                self.list_labels()
+                return get_label(key, refresh=False)
+            return None
+        return self.labels[key]
+
+    @property
+    def labels(self):
+        if self._labels is None:
+            self._labels = self._dict_labels(self.list_labels(self.user_id))
+        return self._labels
+
+    def _dict_labels(self, values: List[Label]) -> dict:
+        return dict(map(lambda x: [x.name, x.id], values))
+
     def list_labels(self, user_id: str = 'me') -> List[Label]:
         """
         Retrieves all labels for the specified user.
@@ -577,7 +596,11 @@ class Gmail(object):
 
         else:
             labels = [Label(name=x['name'], id=x['id']) for x in res['labels']]
+            self._labels = self._dict_labels(labels)
             return labels
+
+    def get_message_from_ref(self, ref: dict, user_id: str = 'me', attachments: str = 'reference'):
+        return self._build_message_from_ref(user_id, ref, attachments)
 
     def _get_messages_from_refs(
         self,
@@ -652,8 +675,11 @@ class Gmail(object):
 
         return sum(message_lists, [])
 
-    # Public alias
-    get_messsages_from_refs = _get_messages_from_refs
+    def get_messages_from_refs(self, message_refs: List[dict],
+                                user_id: str = 'me', attachments: str = 'reference') -> List[Message]:
+
+        return self._get_messages_from_refs(user_id, message_refs,
+                                            attachments)
 
     def _build_message_from_ref(
         self,
@@ -752,7 +778,7 @@ class Gmail(object):
 
             return Message(self.service, self.creds, user_id, msg_id,
                 thread_id, recipient, sender, subject, date, snippet,
-                plain_msg, html_msg, label_ids, attms, msg_hdrs)
+                           plain_msg, html_msg, label_ids, attms, msg_hdrs, raw_response=message)
 
     def _evaluate_message_payload(
         self,

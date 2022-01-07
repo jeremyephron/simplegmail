@@ -7,11 +7,12 @@ This module contains the implementation of the Attachment object.
 
 import base64  # for base64.urlsafe_b64decode
 import os      # for os.path.exists
+import pathlib
 from typing import Optional
 
 class Attachment(object):
     """
-    The Attachment class for attachments to emails in your Gmail mailbox. This 
+    The Attachment class for attachments to emails in your Gmail mailbox. This
     class should not be manually instantiated.
 
     Args:
@@ -33,7 +34,7 @@ class Attachment(object):
         data (bytes): The raw data of the file.
 
     """
-    
+
     def __init__(
         self,
         service: 'googleapiclient.discovery.Resource',
@@ -55,13 +56,13 @@ class Attachment(object):
     def download(self) -> None:
         """
         Downloads the data for an attachment if it does not exist.
-        
+
         Raises:
-            googleapiclient.errors.HttpError: There was an error executing the 
+            googleapiclient.errors.HttpError: There was an error executing the
                 HTTP request.
-        
+
         """
-        
+
         if self.data is not None:
             return
 
@@ -79,30 +80,30 @@ class Attachment(object):
     ) -> None:
         """
         Saves the attachment. Downloads file data if not downloaded.
-        
+
         Args:
-            filepath: where to save the attachment. Default None, which uses 
+            filepath: where to save the attachment. Default None, which uses
                 the filename stored.
             overwrite: whether to overwrite existing files. Default False.
-        
+
         Raises:
-            FileExistsError: if the call would overwrite an existing file and 
+            FileExistsError: if the call would overwrite an existing file and
                 overwrite is not set to True.
-        
+
         """
-        
+
         if filepath is None:
             filepath = self.filename
 
         if self.data is None:
             self.download()
 
-        if overwrite and os.path.exists(filepath):
+        if not overwrite and os.path.exists(filepath):
             raise FileExistsError(
                 f"Cannot overwrite file '{filepath}'. Use overwrite=True if "
                 f"you would like to overwrite the file."
             )
 
+        pathlib.Path(pathlib.PurePath(filepath).parent).mkdir(parents=True, exist_ok=True)
         with open(filepath, 'wb') as f:
             f.write(self.data)
-

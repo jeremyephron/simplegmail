@@ -4,7 +4,8 @@ File: message.py
 This module contains the implementation of the Message object.
 
 """
-
+import json
+from datetime import datetime
 from typing import List, Optional, Union
 
 from httplib2 import Http
@@ -71,7 +72,7 @@ class Message(object):
             label_ids: Optional[List[str]] = None,
             attachments: Optional[List[Attachment]] = None,
             headers: Optional[dict] = None,
-            raw_response: Optiona[dict] = None,
+            raw_response: Optional[dict] = None,
     ) -> None:
         self._service = service
         self.creds = creds
@@ -81,7 +82,7 @@ class Message(object):
         self.recipient = recipient
         self.sender = sender
         self.subject = subject
-        self.date = date
+        self.date = datetime.fromisoformat(date)
         self.snippet = snippet
         self.plain = plain
         self.html = html
@@ -314,6 +315,15 @@ class Message(object):
         """
 
         self.modify_labels(to_add, [])
+
+    def json(self, indent: int = 4):
+        """ Returns the original response from Google as Json"""
+        return json.dumps(self.raw_response, indent=indent)
+
+    def dump(self, filepath: str):
+        with open(filepath, 'w') as fname:
+            fname.write(self.json())
+        return filepath
 
     def remove_label(self, to_remove: Union[Label, str]) -> None:
         """
