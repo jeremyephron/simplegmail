@@ -54,6 +54,18 @@ class Attachment(object):
         self.filetype = filetype
         self.data = data
 
+    def dict(self, with_date: bool = False) -> dict:
+        res = {
+            'user_id': self.user_id,
+            'message_id': self.msg_id,
+            'id': self.id,
+            'filename': self.filename,
+            'filetype': self.filetype,
+        }
+        if with_date:
+            res['data'] = self.data
+        return res
+
     def download(self) -> None:
         """
         Downloads the data for an attachment if it does not exist.
