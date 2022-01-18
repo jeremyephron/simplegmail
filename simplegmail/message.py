@@ -77,7 +77,7 @@ class Message(object):
         attachments: Optional[List[Attachment]] = None,
         headers: Optional[dict] = None,
         raw_response: Optional[dict] = None,
-            raw_base64: Optional[str] = None,
+        raw_base64: Optional[str] = None,
     ) -> None:
         self._service = service
         self.creds = creds
@@ -110,7 +110,7 @@ class Message(object):
         return f"Message(to: {self.recipient}, from: {self.sender}, id: {self.id})"
 
     def forward_body(self, to: str) -> str:
-        """ return ready to sent forward message """
+        """return ready to sent forward message"""
         if not self.raw_base64:
             raise ValueError("missing raw_base64 field")
 
