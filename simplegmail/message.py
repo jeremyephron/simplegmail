@@ -4,7 +4,11 @@ File: message.py
 This module contains the implementation of the Message object.
 
 """
+import re
+import base64
 import json
+import pathlib
+from pathlib import PurePath
 from datetime import datetime
 from typing import List, Optional, Union
 
@@ -73,6 +77,7 @@ class Message(object):
         attachments: Optional[List[Attachment]] = None,
         headers: Optional[dict] = None,
         raw_response: Optional[dict] = None,
+            raw_base64: Optional[str] = None,
     ) -> None:
         self._service = service
         self.creds = creds
@@ -90,6 +95,7 @@ class Message(object):
         self.attachments = attachments if attachments is not None else []
         self.headers = headers if headers else {}
         self.raw_response = raw_response if raw_response else {}
+        self.raw_base64 = raw_base64 if raw_base64 else None
 
     @property
     def service(self) -> "googleapiclient.discovery.Resource":
@@ -102,6 +108,34 @@ class Message(object):
         """Represents the object by its sender, recipient, and id."""
 
         return f"Message(to: {self.recipient}, from: {self.sender}, id: {self.id})"
+
+    def forward_body(self, to: str) -> str:
+        """ return ready to sent forward message """
+        if not self.raw_base64:
+            raise ValueError("missing raw_base64 field")
+
+        email = base64.urlsafe_b64decode(self.raw_base64).decode()
+        new_email = []
+        for line in email.split("\n"):
+            if line.startswith("To: "):
+                new_email.append(f"To: {to}\r")
+            else:
+                new_email.append(line)
+        new_email_b = "\n".join(new_email).encode()
+        return base64.urlsafe_b64encode(new_email_b).decode()
+
+    def download_attachments(self, overwrite: bool = True, tmpdir="/tmp"):
+        dest_dir = str(PurePath().joinpath(tmpdir, self.id, "attachments"))
+        pathlib.Path(dest_dir).mkdir(parents=True, exist_ok=True)
+        paths = []
+        for attach in self.attachments:
+            fpath = PurePath().joinpath(
+                dest_dir,
+                f"{attach.filename}",
+            )
+            attach.save(str(fpath), overwrite)
+            paths.append(str(fpath))
+        return paths
 
     def mark_as_read(self) -> None:
         """

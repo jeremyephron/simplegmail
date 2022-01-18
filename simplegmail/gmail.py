@@ -113,6 +113,25 @@ class Gmail(object):
 
         return self._service
 
+    def send_raw_message(self,  message_raw64: str, user_id: str = 'me') -> Message:
+        try:
+            req = self.service.users().messages().send(userId=user_id, body={'raw': message_raw64})
+            res = req.execute()
+            return res
+        except HttpError as error:
+            # Pass along the error
+            raise error
+
+
+    def forward_message(self, message: Message, sender: str, to: str, forward_prefix="[FWD]", tmpdir="/tmp") -> Message:
+        fpaths = message.download_attachments(tmpdir=tmpdir)
+        return self.send_message(sender=sender,
+                                 to=to,
+                                 subject=f"{forward_prefix}{message.subject}",
+                                 msg_html=message.html,
+                                 msg_plain=message.plain,
+                                 attachments=fpaths)
+
     def send_message(
         self,
         sender: str,
@@ -701,9 +720,24 @@ class Gmail(object):
 
         return self._get_messages_from_refs(user_id, message_refs, attachments)
 
+    def _build_raw_message_from_ref(
+            self, user_id: str, message_ref: dict) -> str:
+        try:
+            # Get message RAW base64
+            message = (
+                self.service.users()
+                .messages()
+                .get(userId=user_id, id=message_ref["id"], format='raw')
+                .execute()
+            )
+            return message['raw']
+        except HttpError as error:
+            # Pass along the error
+            raise error
+
     def _build_message_from_ref(
-        self, user_id: str, message_ref: dict, attachments: str = "reference"
-    ) -> Message:
+            self, user_id: str, message_ref: dict, attachments: str = "reference",
+            with_raw: bool = False) -> Message:
         """
         Creates a Message object from a reference.
 
@@ -725,7 +759,7 @@ class Gmail(object):
                 HTTP request.
 
         """
-
+        message_raw = None
         try:
             # Get message JSON
             message = (
@@ -734,6 +768,8 @@ class Gmail(object):
                 .get(userId=user_id, id=message_ref["id"])
                 .execute()
             )
+            if with_raw:
+              message_raw = self._build_raw_message_from_ref(user_id, message_ref)
 
         except HttpError as error:
             # Pass along the error
@@ -819,6 +855,7 @@ class Gmail(object):
                 attms,
                 msg_hdrs,
                 raw_response=message,
+                raw_base64=message_raw
             )
 
     def _evaluate_message_payload(
