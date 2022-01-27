@@ -678,9 +678,8 @@ class Gmail(object):
             return labels
 
     def get_message_from_ref(
-        self, ref: dict, user_id: str = "me", attachments: str = "reference"
-    ):
-        return self._build_message_from_ref(user_id, ref, attachments)
+            self, ref: dict, user_id: str = "me", attachments: str = "reference", with_raw: bool = False):
+        return self._build_message_from_ref(user_id, ref, attachments, with_raw=with_raw)
 
     def _get_messages_from_refs(
         self,
