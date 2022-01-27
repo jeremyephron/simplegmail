@@ -597,12 +597,43 @@ class Gmail(object):
             # Pass along the error
             raise error
 
+    def create_label(self, label_name: str, user_id: str = 'me') -> Label:
+        """
+        Create a new label
+        Args:
+            label_name: Name for the new label
+            user_id: The user's email address. By default, the authenticated
+                user.
+        Returns:
+            A Label object.
+        Raises:
+            googleapiclient.errors.HttpError: There was an error executing the
+                HTTP request.
+        """
+        body = {
+            "name": label_name,
+        }
+
+        try:
+            res = self.service.users().labels().create(
+                userId=user_id,
+                body=body
+            ).execute()
+
+        except HttpError as error:
+            # Pass along the error
+            raise error
+
+        else:
+            return Label(res['name'], res['id'])
+
     def get_label_id(self, key: str, refresh: bool = True):
         if key not in self.labels:
             if refresh:
                 self.list_labels()
-                return get_label(key, refresh=False)
-            return None
+                return self.get_label_id(key, refresh=False)
+            label = self.create_label(key)
+            self._labels[label.name] = label.id
         return self.labels[key]
 
     @property
