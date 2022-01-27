@@ -364,9 +364,14 @@ class Message(object):
 
     def json(self, indent: int = 4):
         """Returns the original response from Google as Json"""
+        if self.raw_base64:
+            self.raw_response['raw'] = self.raw_base64
         return json.dumps(self.raw_response, indent=indent)
 
     def dump(self, filepath: str):
+        pathlib.Path(pathlib.PurePath(filepath).parent).mkdir(
+            parents=True, exist_ok=True
+        )
         with open(filepath, "w") as fname:
             fname.write(self.json())
         return filepath
