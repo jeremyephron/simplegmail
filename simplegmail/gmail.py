@@ -83,7 +83,8 @@ class Gmail(object):
                 flow = client.flow_from_clientsecrets(
                     self.client_secret_file, self._SCOPES
                 )
-                self.creds = tools.run_flow(flow, store)
+                flags = tools.argparser.parse_args([])
+                self.creds = tools.run_flow(flow, store, flags)
 
             self._service = build(
                 'gmail', 'v1', http=self.creds.authorize(Http()),
