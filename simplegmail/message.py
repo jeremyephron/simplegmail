@@ -60,24 +60,27 @@ class Message(object):
     """
 
     def __init__(
-        self,
-        service: "googleapiclient.discovery.Resource",
-        creds: "oauth2client.client.OAuth2Credentials",
-        user_id: str,
-        msg_id: str,
-        thread_id: str,
-        recipient: str,
-        sender: str,
-        subject: str,
-        date: str,
-        snippet,
-        plain: Optional[str] = None,
-        html: Optional[str] = None,
-        label_ids: Optional[List[str]] = None,
-        attachments: Optional[List[Attachment]] = None,
-        headers: Optional[dict] = None,
-        raw_response: Optional[dict] = None,
-        raw_base64: Optional[str] = None,
+            self,
+            service: "googleapiclient.discovery.Resource",
+            creds: "oauth2client.client.OAuth2Credentials",
+            user_id: str,
+            msg_id: str,
+            thread_id: str,
+            recipient: str,
+            sender: str,
+            subject: str,
+            date: str,
+            snippet,
+            plain: Optional[str] = None,
+            html: Optional[str] = None,
+            cc: Optional[str] = None,
+            bcc: Optional[str] = None,
+            label_ids: Optional[List[str]] = None,
+            attachments: Optional[List[Attachment]] = None,
+            headers: Optional[dict] = None,
+            headers_list: Optional[list] = None,
+            raw_response: Optional[dict] = None,
+            raw_base64: Optional[str] = None,
     ) -> None:
         self._service = service
         self.creds = creds
@@ -87,6 +90,8 @@ class Message(object):
         self.recipient = recipient
         self.sender = sender
         self.subject = subject
+        self.cc = cc
+        self.bcc = bcc
         self.date = datetime.fromisoformat(date)
         self.snippet = snippet
         self.plain = plain
@@ -94,6 +99,7 @@ class Message(object):
         self.label_ids = label_ids if label_ids is not None else []
         self.attachments = attachments if attachments is not None else []
         self.headers = headers if headers else {}
+        self.headers_list = headers_list if headers_list else []
         self.raw_response = raw_response if raw_response else {}
         self.raw_base64 = raw_base64 if raw_base64 else None
 
@@ -284,6 +290,12 @@ class Message(object):
             ), f"An error occurred in a call to `trash`."
 
             self.label_ids = res["labelIds"]
+
+    def text_headers(self) -> str:
+        headers = []
+        for header in self.headers_list:
+            headers.append(f"{header['name']}: {header['value']}")
+        return "\n".join(headers)
 
     def untrash(self) -> None:
         """

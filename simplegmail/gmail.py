@@ -776,6 +776,102 @@ class Gmail(object):
             # Pass along the error
             raise error
 
+    def _build_message_from_raw_json(self,
+                                     message: dict,
+                                     message_raw: Optional[str] = None,
+                                     attachments: str="reference",
+                                     user_id: str="me") -> Message:
+        msg_id = message["id"]
+        thread_id = message["threadId"]
+        label_ids = []
+        if "labelIds" in message:
+            user_labels = {x.id: x for x in self.list_labels(user_id=user_id)}
+            label_ids = [user_labels[x] for x in message["labelIds"]]
+        snippet = html.unescape(message["snippet"])
+
+        payload = message["payload"]
+        headers = payload["headers"]
+
+        # Get header fields (date, from, to, subject)
+        date = ""
+        sender = ""
+        recipient = ""
+        subject = ""
+        cc = None
+        bcc = None
+        msg_hdrs = {}
+        for hdr in headers:
+            if hdr["name"].lower() == "date":
+                try:
+                    date = str(parser.parse(hdr["value"]).astimezone())
+                except Exception:
+                    date = hdr["value"]
+            elif hdr["name"].lower() == "from":
+                sender = hdr["value"]
+            elif hdr["name"].lower() == "to":
+                recipient = hdr["value"]
+            elif hdr["name"].lower() == "subject":
+                subject = hdr["value"]
+            elif hdr["name"].lower() == "cc":
+                cc = hdr["value"]
+            elif hdr["name"].lower() == "bcc":
+               bcc = hdr["value"]
+
+            msg_hdrs[hdr["name"]] = hdr["value"]
+
+        parts = self._evaluate_message_payload(
+            payload, user_id, message["id"], attachments
+        )
+
+        plain_msg = None
+        html_msg = None
+        attms = []
+        for part in parts:
+            if part["part_type"] == "plain":
+                if plain_msg is None:
+                    plain_msg = part["body"]
+                else:
+                    plain_msg += "\n" + part["body"]
+            elif part["part_type"] == "html":
+                if html_msg is None:
+                    html_msg = part["body"]
+                else:
+                    html_msg += "<br/>" + part["body"]
+            elif part["part_type"] == "attachment":
+                attm = Attachment(
+                    self.service,
+                    user_id,
+                    msg_id,
+                    part["attachment_id"],
+                    part["filename"],
+                    part["filetype"],
+                    part["data"],
+                )
+                attms.append(attm)
+
+        return Message(
+            service=self.service,
+            creds=self.creds,
+            user_id=user_id,
+            msg_id=msg_id,
+            thread_id=thread_id,
+            recipient=recipient,
+            sender=sender,
+            subject=subject,
+            date=date,
+            snippet=snippet,
+            plain=plain_msg,
+            html=html_msg,
+            bcc=bcc,
+            cc=cc,
+            label_ids=label_ids,
+            attachments=attms,
+            headers=msg_hdrs,
+            headers_list=headers,
+            raw_response=message,
+            raw_base64=message_raw,
+        )
+
     def _build_message_from_ref(
         self,
         user_id: str,
@@ -819,89 +915,8 @@ class Gmail(object):
         except HttpError as error:
             # Pass along the error
             raise error
-
         else:
-            msg_id = message["id"]
-            thread_id = message["threadId"]
-            label_ids = []
-            if "labelIds" in message:
-                user_labels = {x.id: x for x in self.list_labels(user_id=user_id)}
-                label_ids = [user_labels[x] for x in message["labelIds"]]
-            snippet = html.unescape(message["snippet"])
-
-            payload = message["payload"]
-            headers = payload["headers"]
-
-            # Get header fields (date, from, to, subject)
-            date = ""
-            sender = ""
-            recipient = ""
-            subject = ""
-            msg_hdrs = {}
-            for hdr in headers:
-                if hdr["name"].lower() == "date":
-                    try:
-                        date = str(parser.parse(hdr["value"]).astimezone())
-                    except Exception:
-                        date = hdr["value"]
-                elif hdr["name"].lower() == "from":
-                    sender = hdr["value"]
-                elif hdr["name"].lower() == "to":
-                    recipient = hdr["value"]
-                elif hdr["name"].lower() == "subject":
-                    subject = hdr["value"]
-
-                msg_hdrs[hdr["name"]] = hdr["value"]
-
-            parts = self._evaluate_message_payload(
-                payload, user_id, message_ref["id"], attachments
-            )
-
-            plain_msg = None
-            html_msg = None
-            attms = []
-            for part in parts:
-                if part["part_type"] == "plain":
-                    if plain_msg is None:
-                        plain_msg = part["body"]
-                    else:
-                        plain_msg += "\n" + part["body"]
-                elif part["part_type"] == "html":
-                    if html_msg is None:
-                        html_msg = part["body"]
-                    else:
-                        html_msg += "<br/>" + part["body"]
-                elif part["part_type"] == "attachment":
-                    attm = Attachment(
-                        self.service,
-                        user_id,
-                        msg_id,
-                        part["attachment_id"],
-                        part["filename"],
-                        part["filetype"],
-                        part["data"],
-                    )
-                    attms.append(attm)
-
-            return Message(
-                self.service,
-                self.creds,
-                user_id,
-                msg_id,
-                thread_id,
-                recipient,
-                sender,
-                subject,
-                date,
-                snippet,
-                plain_msg,
-                html_msg,
-                label_ids,
-                attms,
-                msg_hdrs,
-                raw_response=message,
-                raw_base64=message_raw,
-            )
+            return self._build_message_from_raw_json(message, message_raw=message_raw)
 
     def _evaluate_message_payload(
         self, payload: dict, user_id: str, msg_id: str, attachments: str = "reference"
