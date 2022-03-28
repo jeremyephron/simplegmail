@@ -54,7 +54,7 @@ class Attachment(object):
         self.filetype = filetype
         self.data = data
 
-    def dict(self, with_date: bool = False) -> dict:
+    def dict(self, with_data: bool = False) -> dict:
         res = {
             "user_id": self.user_id,
             "message_id": self.msg_id,
@@ -62,7 +62,7 @@ class Attachment(object):
             "filename": self.filename,
             "filetype": self.filetype,
         }
-        if with_date:
+        if with_data:
             res["data"] = self.data
         return res
 
@@ -86,9 +86,9 @@ class Attachment(object):
             .get(userId=self.user_id, messageId=self.msg_id, id=self.id)
             .execute()
         )
-
         data = res["data"]
-        self.data = base64.urlsafe_b64decode(data)
+        self.data = data
+
 
     def save(self, filepath: Optional[str] = None, overwrite: bool = False) -> None:
         """
@@ -121,4 +121,4 @@ class Attachment(object):
             parents=True, exist_ok=True
         )
         with open(filepath, "wb") as f:
-            f.write(self.data)
+            f.write(base64.urlsafe_b64decode(self.data))
