@@ -701,6 +701,8 @@ class Gmail(object):
             recipient = ''
             subject = ''
             msg_hdrs = {}
+            cc = ''
+            bcc = ''
             for hdr in headers:
                 if hdr['name'].lower() == 'date':
                     try:
@@ -713,6 +715,10 @@ class Gmail(object):
                     recipient = hdr['value']
                 elif hdr['name'].lower() == 'subject':
                     subject = hdr['value']
+                elif hdr['name'].lower() == 'cc':
+                    cc = hdr['value']
+                elif hdr['name'].lower() == 'bcc':
+                    bcc = hdr['value']
 
                 msg_hdrs[hdr['name']] = hdr['value']
 
@@ -742,7 +748,7 @@ class Gmail(object):
 
             return Message(self.service, self.creds, user_id, msg_id,
                 thread_id, recipient, sender, subject, date, snippet,
-                plain_msg, html_msg, label_ids, attms, msg_hdrs)
+                plain_msg, html_msg, label_ids, attms, msg_hdrs, cc, bcc)
 
     def _evaluate_message_payload(
         self,
