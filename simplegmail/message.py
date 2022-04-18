@@ -36,6 +36,9 @@ class Message(object):
         html: the HTML contents of the message. Default None.
         label_ids: the ids of labels associated with this message. Default [].
         attachments: a list of attachments for the message. Default [].
+        headers: a dict of header values. Default {}
+        cc: who the message was CCd to.
+        bcc: who the message was BCCd to.
 
     Attributes:
         _service (googleapiclient.discovery.Resource): the Gmail service object.
@@ -50,6 +53,9 @@ class Message(object):
         html (str): the HTML contents of the message.
         label_ids (List[str]): the ids of labels associated with this message.
         attachments (List[Attachment]): a list of attachments for the message.
+        headers (dict): a dict of header values.
+        cc (str): who the message was CCd to.
+        bcc (str): who the message was BCCd to.
 
     """
 
@@ -69,7 +75,9 @@ class Message(object):
         html: Optional[str] = None,
         label_ids: Optional[List[str]] = None,
         attachments: Optional[List[Attachment]] = None,
-        headers: Optional[dict] = None
+        headers: Optional[dict] = None,
+        cc: str = '',
+        bcc: str = ''
     ) -> None:
         self._service = service
         self.creds = creds
@@ -86,6 +94,8 @@ class Message(object):
         self.label_ids = label_ids if label_ids is not None else []
         self.attachments = attachments if attachments is not None else []
         self.headers = headers if headers else {}
+        self.cc = cc
+        self.bcc = bcc
 
     @property
     def service(self) -> 'googleapiclient.discovery.Resource':
