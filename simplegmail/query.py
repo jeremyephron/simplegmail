@@ -118,6 +118,37 @@ def construct_query(*query_dicts, **query_terms) -> str:
         slides (bool): The message contains a Google Slides attachment.
             E.g.: slides=True
 
+        list (str): Messages from a mailing list
+            E.g.: list=info@example.com
+
+        chat (str): Chat messages.
+            E.g.: chat=movie
+
+        deliveredto (str): Search by email for delivered messages.
+            E.g.: deliveredto=username@gmail.com
+
+        category (str): Messages in a certain category.
+            E.g.: category=primary
+
+        size (int): Messages larger than a certain size in bytes.
+            E.g.: size=1000000
+
+        larger (str): Messages larger than a certain size in bytes
+            E.g.: larger=10M
+
+        smaller (str): Messages smaller than a certain size in bytes
+            E.g.: smaller=10M
+
+        id (str): Messages with a certain message-id header.
+            E.g.: id=ALongRandomStringOfCharactersNumbersAndOtherChars-+@mail.gmail.com
+
+        has (str): Messages that have or don't have a label, or an icon
+            E.g.: has=userlabels
+                  has=nouserlabels
+                  has:yellow-star
+
+            Note: Labels are only added to a message, and not an entire conversation.
+
     Returns:
         The query string.
 
@@ -515,3 +546,153 @@ def _slides() -> str:
     """
 
     return 'has:presentation'
+
+
+def _list(_list: str) -> str:
+    """
+    Returns a query term matching "list".
+
+    Args:
+        _list: The name of the mailing list.
+
+    Returns:
+        The query string.
+
+    """
+
+    return f"list:{_list}"
+
+
+def _in(_in: str) -> str:
+    """
+    Returns a query term matching "in".
+
+    Args:
+        _in: The name of the folder.
+
+    Returns:
+        The query string.
+
+    """
+
+    return f"in:{_in}"
+
+
+def _chat(chat: str) -> str:
+    """
+    Returns a query term matching "is:chat".
+
+    Args:
+        chat: The search term to use for chat messages.
+
+    Returns:
+        The query string.
+
+    """
+
+    return f"is:chat {chat}"
+
+
+def _deliveredto(deliveredto: str) -> str:
+    """
+    Returns a query term matching "deliveredto".
+
+    Args:
+        deliveredto: The email address for delivered messages.
+
+    Returns:
+        The query string.
+
+    """
+
+    return f"deliveredto:{deliveredto}"
+
+
+def _category(category: str) -> str:
+    """
+    Returns a query term matching "category".
+
+    Args:
+        category: The search term to use for the category.
+
+    Returns:
+        The query string.
+
+    """
+
+    return f"category:{category}"
+
+
+def _size(size: int) -> str:
+    """
+    Returns a query term matching "size".
+
+    Args:
+        size: Search for messages larger than size.
+
+    Returns:
+        The query string.
+
+    """
+
+    return f"size:{size}"
+
+
+def _larger(larger: str) -> str:
+    """
+    Returns a query term matching "larger".
+
+    Args:
+        larger: Search for messages larger than larger.
+
+    Returns:
+        The query string.
+
+    """
+
+    return f"larger:{larger}"
+
+
+def _smaller(smaller: str) -> str:
+    """
+    Returns a query term matching "smaller".
+
+    Args:
+        smaller: Search for messages smaller than smaller.
+
+    Returns:
+        The query string.
+
+    """
+
+    return f"smaller:{smaller}"
+
+
+def _id(_id: str) -> str:
+    """
+    Returns a query term matching "id".
+
+    Args:
+        _id: The RFC822 message ID.
+
+    Returns:
+        The query string.
+
+    """
+
+    return f"rfc822msgid:{_id}"
+
+
+def _has(has: str) -> str:
+    """
+    Returns a query term matching "has".
+
+    Args:
+        has: The has search term. E.g.: has:yellow-star
+
+    Returns:
+        The query string.
+
+    """
+
+    return f"has:{has}"
