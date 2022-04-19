@@ -66,6 +66,7 @@ class Gmail(object):
     ) -> None:
         self.client_secret_file = client_secret_file
         self.creds_file = creds_file
+        self._resultSizeEstimate = 0
 
         try:
             # The file gmail_token.json stores the user's access and refresh
@@ -516,6 +517,9 @@ class Gmail(object):
                 includeSpamTrash=include_spam_trash
             ).execute()
 
+            if 'resultSizeEstimate' in response:
+                self._resultSizeEstimate = response['resultSizeEstimate']
+
             message_refs = []
             if 'messages' in response:  # ensure request was successful
                 message_refs.extend(response['messages'])
@@ -529,6 +533,9 @@ class Gmail(object):
                     includeSpamTrash=include_spam_trash,
                     pageToken=page_token
                 ).execute()
+
+                if 'resultSizeEstimate' in response:
+                    self._resultSizeEstimate = response['resultSizeEstimate']
 
                 message_refs.extend(response['messages'])
 
@@ -988,3 +995,7 @@ class Gmail(object):
 
         res = req.execute()
         return res
+
+    @property
+    def resultSizeEstimate(self):
+        return self._resultSizeEstimate
