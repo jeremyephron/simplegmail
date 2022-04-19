@@ -516,7 +516,7 @@ class Gmail(object):
         try:
             max_results = self._maxResults
             if max_results == 0:
-                max_results = MAX_RESULTS
+                max_results = self.MAX_RESULTS
             response = self.service.users().messages().list(
                 userId=user_id,
                 q=query,
