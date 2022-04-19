@@ -97,7 +97,7 @@ class Attachment(object):
         if self.data is None:
             self.download()
 
-        if overwrite and os.path.exists(filepath):
+        if not overwrite and os.path.exists(filepath):
             raise FileExistsError(
                 f"Cannot overwrite file '{filepath}'. Use overwrite=True if "
                 f"you would like to overwrite the file."
