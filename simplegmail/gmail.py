@@ -737,7 +737,7 @@ class Gmail(object):
                 elif part['part_type'] == 'attachment':
                     attm = Attachment(self.service, user_id, msg_id,
                                       part['attachment_id'], part['filename'],
-                                      part['filetype'], part['data'])
+                                      part['filetype'], part['data'], part['headers'])
                     attms.append(attm)
 
             return Message(self.service, self.creds, user_id, msg_id,
@@ -782,12 +782,26 @@ class Gmail(object):
             if not filename:
                 filename = 'unknown'
 
+            headers = {}
+            for hdr in payload['headers']:
+                name = hdr['name']
+                value = hdr['value']
+                if name in headers:
+                    # Allow for duplicate header names, per page 20 of RFC 5322:
+                    # https://www.rfc-editor.org/rfc/rfc5322#section-3.6
+                    if not isinstance(headers[name], list):
+                        headers[name] = [headers[name]]
+                    headers[name].append(value)
+                    continue
+                headers[name] = value
+
             obj = {
                 'part_type': 'attachment',
                 'filetype': payload['mimeType'],
                 'filename': filename,
                 'attachment_id': att_id,
-                'data': None
+                'data': None,
+                'headers': headers
             }
 
             if attachments == 'reference':
