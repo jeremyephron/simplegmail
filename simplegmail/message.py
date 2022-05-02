@@ -111,11 +111,11 @@ class Message(object):
         return self._service
 
     def __repr__(self) -> str:
-        """Represents the object by its sender, recipient, and id."""
+         """Represents the object by its sender, recipient, and id."""
 
-        return f"Message(to: {self.recipient}, from: {self.sender}, id: {self.id})"
+         return f"Message(to: {self.recipient}, from: {self.sender}, id: {self.id})"
 
-    def forward_body(self, to: str) -> str:
+    def forward_body(self, to: str, sender: str) -> str:
         """return ready to sent forward message"""
         if not self.raw_base64:
             raise ValueError("missing raw_base64 field")
@@ -123,8 +123,13 @@ class Message(object):
         email = base64.urlsafe_b64decode(self.raw_base64).decode()
         new_email = []
         for line in email.split("\n"):
-            if line.startswith("To: "):
+            if to and line.startswith("To: "):
                 new_email.append(f"To: {to}\r")
+            elif sender and line.startswith("From: "):
+                new_email.append(line)
+                new_email.append(f"Reply-To: {sender}\r")
+                new_email.append(f"Resent-To: {to}\r")
+                new_email.append(f"On-Behalf-Of: {sender}\r")
             else:
                 new_email.append(line)
         new_email_b = "\n".join(new_email).encode()

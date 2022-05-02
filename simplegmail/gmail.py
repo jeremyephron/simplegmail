@@ -113,7 +113,7 @@ class Gmail(object):
 
         return self._service
 
-    def send_raw_message(self, message_raw64: str, user_id: str = "me") -> Message:
+    def send_raw_message(self, message_raw64: str, user_id: str = "me") -> dict:
         try:
             req = (
                 self.service.users()
@@ -139,10 +139,24 @@ class Gmail(object):
             sender=sender,
             to=to,
             subject=f"{forward_prefix}{message.subject}",
+            headers= [
+                {"name": "Sender", "value": sender},
+                {"name": "On-Behalf-Of", "value": sender},
+                {"name": "Resent-To", "value": sender},
+                {"name": "ConnySender", "value": sender}
+                      ],
             msg_html=message.html,
             msg_plain=message.plain,
             attachments=fpaths,
         )
+
+    def forward_raw_message(
+        self,
+        message: Message,
+            to: str,
+            sender: str ="") -> dict:
+        b64_message = message.forward_body(to, sender)
+        return self.send_raw_message(b64_message)
 
     def send_message(
         self,
@@ -155,6 +169,7 @@ class Gmail(object):
         bcc: Optional[List[str]] = None,
         attachments: Optional[List[str]] = None,
         signature: bool = False,
+        headers: List[dict] = [],
         user_id: str = "me",
     ) -> Message:
         """
@@ -195,6 +210,7 @@ class Gmail(object):
             bcc=bcc,
             attachments=attachments,
             signature=signature,
+            headers=headers,
             user_id=user_id,
         )
 
@@ -1016,6 +1032,7 @@ class Gmail(object):
         bcc: List[str] = None,
         attachments: List[str] = None,
         signature: bool = False,
+        headers: List[dict] = [],
         user_id: str = "me",
     ) -> dict:
         """

@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
     name="simplegmail",
-    version="4.1.3",
+    version="4.1.4",
     url="https://github.com/jeremyephron/simplegmail",
     author="Jeremy Ephron",
     author_email="jeremye@cs.stanford.edu",
