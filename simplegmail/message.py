@@ -8,6 +8,7 @@ import re
 import base64
 import json
 import pathlib
+import email as elib
 from pathlib import PurePath
 from datetime import datetime
 from typing import List, Optional, Union
@@ -110,17 +111,9 @@ class Message(object):
 
         return self._service
 
-    def __repr__(self) -> str:
-         """Represents the object by its sender, recipient, and id."""
-
-         return f"Message(to: {self.recipient}, from: {self.sender}, id: {self.id})"
-
-    def forward_body(self, to: str, sender: str) -> str:
-        """return ready to sent forward message"""
-        if not self.raw_base64:
-            raise ValueError("missing raw_base64 field")
-
-        email = base64.urlsafe_b64decode(self.raw_base64).decode()
+    @classmethod
+    def parse_raw_email(cls, content):
+        email = content.decode()
         new_email = []
         for line in email.split("\n"):
             if to and line.startswith("To: "):
@@ -133,6 +126,27 @@ class Message(object):
             else:
                 new_email.append(line)
         new_email_b = "\n".join(new_email).encode()
+        return base64.urlsafe_b64encode(new_email_b).decode()
+
+
+
+    def __repr__(self) -> str:
+         """Represents the object by its sender, recipient, and id."""
+
+         return f"Message(to: {self.recipient}, from: {self.sender}, id: {self.id})"
+
+    def forward_body(self, to: str, sender: str) -> str:
+        """return ready to sent forward message"""
+        if not self.raw_base64:
+            raise ValueError("missing raw_base64 field")
+
+        email = base64.urlsafe_b64decode(self.raw_base64)
+        msg = elib.message_from_bytes(email)
+        msg.replace_header("To", to)
+        msg.add_header("Resent-To", to)
+        msg.add_header("Reply-To", sender)
+        msg.add_header("On-Behalf-Of", sender)
+        new_email_b = msg.as_bytes()
         return base64.urlsafe_b64encode(new_email_b).decode()
 
     def download_attachments(self, overwrite: bool = True, tmpdir="/tmp"):
