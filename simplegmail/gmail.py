@@ -884,18 +884,16 @@ class Gmail(object):
 
             msg_html += "<br /><br />" + account_sig
 
-        attach_plain = MIMEMultipart('alternative') if attachments else msg
-        attach_html = MIMEMultipart('related') if attachments else msg
+        text_part = MIMEMultipart('alternative') if attachments else msg
 
         if msg_plain:
-            attach_plain.attach(MIMEText(msg_plain, 'plain'))
+            text_part.attach(MIMEText(msg_plain, 'plain'))
 
         if msg_html:
-            attach_html.attach(MIMEText(msg_html, 'html'))
+            text_part.attach(MIMEText(msg_html, 'html'))
 
         if attachments:
-            attach_plain.attach(attach_html)
-            msg.attach(attach_plain)
+            msg.attach(text_part)
 
             self._ready_message_with_attachments(msg, attachments)
 
