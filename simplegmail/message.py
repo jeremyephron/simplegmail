@@ -9,6 +9,7 @@ import base64
 import json
 import pathlib
 import email as elib
+
 from pathlib import PurePath
 from datetime import datetime
 from typing import List, Optional, Union
@@ -135,13 +136,18 @@ class Message(object):
 
          return f"Message(to: {self.recipient}, from: {self.sender}, id: {self.id})"
 
-    def forward_body(self, to: str, sender: str) -> str:
-        """return ready to sent forward message"""
+    def get_std_msg(self) -> elib.message.Message:
         if not self.raw_base64:
             raise ValueError("missing raw_base64 field")
-
         email = base64.urlsafe_b64decode(self.raw_base64)
-        msg = elib.message_from_bytes(email)
+        return elib.message_from_bytes(email)
+
+    def as_string(self, with_header=False) -> str:
+        return self.get_std_msg().as_string(unixfrom=with_header, maxheaderlen=0)
+
+    def forward_body(self, to: str, sender: str) -> str:
+        """return ready to sent forward message"""
+        msg = self.get_std_msg()
         msg.replace_header("To", to)
         msg.add_header("Resent-To", to)
         msg.add_header("Reply-To", sender)
@@ -399,12 +405,15 @@ class Message(object):
             self.raw_response['raw'] = self.raw_base64
         return json.dumps(self.raw_response, indent=indent)
 
-    def dump(self, filepath: str):
+    def dump(self, filepath: str, as_string=False):
         pathlib.Path(pathlib.PurePath(filepath).parent).mkdir(
             parents=True, exist_ok=True
         )
         with open(filepath, "w") as fname:
-            fname.write(self.json())
+            if as_string:
+                fname.write(self.as_string())
+            else:
+                fname.write(self.json())
         return filepath
 
     def remove_label(self, to_remove: Union[Label, str]) -> None:
