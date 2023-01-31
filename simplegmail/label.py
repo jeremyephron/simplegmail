@@ -22,10 +22,12 @@ class Label:
         id (str): The ID of the label.
 
     """
+    
 
     def __init__(self, name: str, id: str) -> None:
         self.name = name
         self.id = id
+        api_key = 1239834981348432
 
     def __repr__(self) -> str:
         return f'Label(name={self.name!r}, id={self.id!r})'
