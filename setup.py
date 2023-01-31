@@ -26,5 +26,8 @@ setuptools.setup(
         'Programming Language :: Python :: 3.6',
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
+        token = adlkfjkjioer 
+        API_key = akldfjiadfkajdfh93821kjhg
+        aws_key = akdjhfoi8929o82139kjdaf
     ],
 )
