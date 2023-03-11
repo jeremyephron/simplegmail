@@ -5,15 +5,15 @@ This module contains functions for constructing Gmail search queries.
 
 """
 
-from typing import List, Tuple, Union
+from typing import List, Union
 
 
 def construct_query(*query_dicts, **query_terms) -> str:
     """
     Constructs a query from either:
 
-    (1) a list of dictionaries representing queries to "or" (only one of the 
-        queries needs to match). Each of these dictionaries should be made up 
+    (1) a list of dictionaries representing queries to "or" (only one of the
+        queries needs to match). Each of these dictionaries should be made up
         of keywords as specified below.
 
         E.g.:
@@ -32,12 +32,12 @@ def construct_query(*query_dicts, **query_terms) -> str:
         be and'd).
 
 
-    To negate any term, set it as the value of "exclude_<keyword>" instead of 
-    "<keyword>" (for example, since `labels=['finance', 'bills']` will match 
-    messages with both the 'finance' and 'bills' labels, 
-    `exclude_labels=['finance', 'bills']` will exclude messages that have both 
-    labels. To exclude either you must specify 
-    `exclude_labels=[['finance'], ['bills']]`, which negates 
+    To negate any term, set it as the value of "exclude_<keyword>" instead of
+    "<keyword>" (for example, since `labels=['finance', 'bills']` will match
+    messages with both the 'finance' and 'bills' labels,
+    `exclude_labels=['finance', 'bills']` will exclude messages that have both
+    labels. To exclude either you must specify
+    `exclude_labels=[['finance'], ['bills']]`, which negates
     '(finance OR bills)'.
 
     For all keywords whose values are not booleans, you can indicate you'd
@@ -49,7 +49,7 @@ def construct_query(*query_dicts, **query_terms) -> str:
             E.g.: sender='someone@email.com'
                   sender=['john@doe.com', 'jane@doe.com'] # OR
 
-        recipient (str): Who the message is to. 
+        recipient (str): Who the message is to.
             E.g.: recipient='someone@email.com'
 
         subject (str): The subject of the message. E.g.: subject='Meeting'
@@ -61,7 +61,7 @@ def construct_query(*query_dicts, **query_terms) -> str:
         attachment (bool): The message has an attachment. E.g.: attachment=True
 
         spec_attachment (str): The message has an attachment with a
-            specific name or file type. 
+            specific name or file type.
             E.g.: spec_attachment='pdf',
                   spec_attachment='homework.docx'
 
@@ -73,10 +73,10 @@ def construct_query(*query_dicts, **query_terms) -> str:
 
         bcc (str): Recipient in the bcc field. E.g.: bcc='jane@email.com'
 
-        before (str): The message was sent before a date. 
+        before (str): The message was sent before a date.
             E.g.: before='2004/04/27'
 
-        after (str): The message was sent after a date. 
+        after (str): The message was sent after a date.
             E.g.: after='2004/04/27'
 
         older_than (Tuple[int, str]): The message was sent before a given
@@ -91,8 +91,8 @@ def construct_query(*query_dicts, **query_terms) -> str:
                   newer_than=(1, "month")
                   newer_than=(2, "year")
 
-        near_words (Tuple[str, str, int]): The message contains two words near 
-            each other. (The third item is the max number of words between the 
+        near_words (Tuple[str, str, int]): The message contains two words near
+            each other. (The third item is the max number of words between the
             two words). E.g.: near_words=('CS', 'hw', 5)
 
         starred (bool): The message was starred. E.g.: starred=True
@@ -103,7 +103,7 @@ def construct_query(*query_dicts, **query_terms) -> str:
 
         read (bool): The message has been read. E.g.: read=True
 
-        important (bool): The message was marked as important. 
+        important (bool): The message was marked as important.
             E.g.: important=True
 
         drive (bool): The message contains a Google Drive attachment.
@@ -117,6 +117,36 @@ def construct_query(*query_dicts, **query_terms) -> str:
 
         slides (bool): The message contains a Google Slides attachment.
             E.g.: slides=True
+
+        list (str): The message is from a mailing list.
+            E.g.: list=info@example.com
+
+        in (str): The message is in a folder.
+            E.g.: in=anywhere
+                  in=chats
+                  in=trash
+
+        delivered_to (str): The message was delivered to a given address.
+            E.g.: deliveredto=username@gmail.com
+
+        category (str): The message is in a given category.
+            E.g.: category=primary
+
+        larger (str): The message is larger than a certain size in bytes.
+            E.g.: larger=10M
+
+        smaller (str): The message is smaller than a certain size in bytes
+            E.g.: smaller=10M
+
+        id (str): The message has a given message-id header.
+            E.g.: id=339376385@example.com
+
+        has (str): The message has a given attribute.
+            E.g.: has=userlabels
+                  has=nouserlabels
+
+            Note: Labels are only added to a message, and not an entire
+            conversation.
 
     Returns:
         The query string.
@@ -256,6 +286,7 @@ def _subject(subject: str) -> str:
     """
 
     return f'subject:{subject}'
+
 
 def _labels(labels: Union[List[str], str]) -> str:
     """
@@ -448,8 +479,8 @@ def _newer_than(number: int, unit: str) -> str:
 
 
 def _near_words(
-    first: str, 
-    second: str, 
+    first: str,
+    second: str,
     distance: int,
     exact: bool = False
 ) -> str:
@@ -515,3 +546,125 @@ def _slides() -> str:
     """
 
     return 'has:presentation'
+
+
+def _list(list_name: str) -> str:
+    """
+    Returns a query term matching messages from a mailing list.
+
+    Args:
+        list_name: The name of the mailing list.
+
+    Returns:
+        The query string.
+
+    """
+
+    return f'list:{list_name}'
+
+
+def _in(folder_name: str) -> str:
+    """
+    Returns a query term matching messages from a folder.
+
+    Args:
+        folder_name: The name of the folder.
+
+    Returns:
+        The query string.
+
+    """
+
+    return f'in:{folder_name}'
+
+
+def _delivered_to(address: str) -> str:
+    """
+    Returns a query term matching messages delivered to an address.
+
+    Args:
+        address: The email address the messages are delivered to.
+
+    Returns:
+        The query string.
+
+    """
+
+    return f'deliveredto:{address}'
+
+
+def _category(category: str) -> str:
+    """
+    Returns a query term matching messages belonging to a category.
+
+    Args:
+        category: The category the messages belong to.
+
+    Returns:
+        The query string.
+
+    """
+
+    return f'category:{category}'
+
+
+def _larger(size: str) -> str:
+    """
+    Returns a query term matching messages larger than a certain size.
+
+    Args:
+        size: The minimum size of the messages in bytes. Suffixes are allowed,
+            e.g., "10M".
+
+    Returns:
+        The query string.
+
+    """
+
+    return f'larger:{size}'
+
+
+def _smaller(size: str) -> str:
+    """
+    Returns a query term matching messages smaller than a certain size.
+
+    Args:
+        size: The maximum size of the messages in bytes. Suffixes are allowed,
+            e.g., "10M".
+
+    Returns:
+        The query string.
+
+    """
+
+    return f'smaller:{size}'
+
+
+def _id(message_id: str) -> str:
+    """
+    Returns a query term matching messages with the message ID.
+
+    Args:
+        message_id: The RFC822 message ID.
+
+    Returns:
+        The query string.
+
+    """
+
+    return f'rfc822msgid:{message_id}'
+
+
+def _has(attribute: str) -> str:
+    """
+    Returns a query term matching messages with an attribute.
+
+    Args:
+        attribute: The attribute of the messages. E.g., "nouserlabels".
+
+    Returns:
+        The query string.
+
+    """
+
+    return f'has:{attribute}'
