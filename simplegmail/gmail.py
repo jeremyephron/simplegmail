@@ -713,6 +713,8 @@ class Gmail(object):
                 for i in range(start, end)
             ]
 
+            gmail.service.close()
+
         threads = [
             threading.Thread(target=thread_download_batch, args=(i,))
             for i in range(num_threads)
