@@ -37,8 +37,8 @@ class Message(object):
         label_ids: the ids of labels associated with this message. Default [].
         attachments: a list of attachments for the message. Default [].
         headers: a dict of header values. Default {}
-        cc: who the message was CCd to.
-        bcc: who the message was BCCd to.
+        cc: who the message was cc'd on the message.
+        bcc: who the message was bcc'd on the message.
 
     Attributes:
         _service (googleapiclient.discovery.Resource): the Gmail service object.
@@ -54,8 +54,8 @@ class Message(object):
         label_ids (List[str]): the ids of labels associated with this message.
         attachments (List[Attachment]): a list of attachments for the message.
         headers (dict): a dict of header values.
-        cc (str): who the message was CCd to.
-        bcc (str): who the message was BCCd to.
+        cc (List[str]): who the message was cc'd on the message.
+        bcc (List[str]): who the message was bcc'd on the message.
 
     """
 
@@ -76,8 +76,8 @@ class Message(object):
         label_ids: Optional[List[str]] = None,
         attachments: Optional[List[Attachment]] = None,
         headers: Optional[dict] = None,
-        cc: str = '',
-        bcc: str = ''
+        cc: Optional[List[str]] = None,
+        bcc: Optional[List[str]] = None
     ) -> None:
         self._service = service
         self.creds = creds
@@ -91,11 +91,11 @@ class Message(object):
         self.snippet = snippet
         self.plain = plain
         self.html = html
-        self.label_ids = label_ids if label_ids is not None else []
-        self.attachments = attachments if attachments is not None else []
-        self.headers = headers if headers else {}
-        self.cc = cc
-        self.bcc = bcc
+        self.label_ids = label_ids or []
+        self.attachments = attachments or []
+        self.headers = headers or {}
+        self.cc = cc or []
+        self.bcc = bcc or []
 
     @property
     def service(self) -> 'googleapiclient.discovery.Resource':
