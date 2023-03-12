@@ -40,7 +40,11 @@ class Gmail(object):
     The Gmail class which serves as the entrypoint for the Gmail service API.
 
     Args:
-        client_secret_file: The name of the user's client secret file.
+        client_secret_file: The path of the user's client secret file.
+        creds_file: The path of the auth credentials file (created on first
+            call).
+        access_type: Whether to request a refresh token for usage without a
+            user necessarily present. Either 'online' or 'offline'.
 
     Attributes:
         client_secret_file (str): The name of the user's client secret file.
@@ -62,8 +66,9 @@ class Gmail(object):
             self,
             client_secret_file: str = 'client_secret.json',
             creds_file: str = 'gmail_token.json',
-            _creds: Optional[client.OAuth2Credentials] = None,
             access_type: str = 'offline',
+            noauth_local_webserver: bool = False,
+            _creds: Optional[client.OAuth2Credentials] = None,
     ) -> None:
         self.client_secret_file = client_secret_file
         self.creds_file = creds_file
@@ -82,9 +87,15 @@ class Gmail(object):
                 flow = client.flow_from_clientsecrets(
                     self.client_secret_file, self._SCOPES
                 )
-                flow.params['approval_prompt'] = 'force'
+
                 flow.params['access_type'] = access_type
-                flags = tools.argparser.parse_args([])
+                flow.params['prompt'] = 'consent'
+
+                args = []
+                if noauth_local_webserver:
+                    args.append('--noauth_local_webserver')
+
+                flags = tools.argparser.parse_args(args)
                 self.creds = tools.run_flow(flow, store, flags)
 
             self._service = build(
