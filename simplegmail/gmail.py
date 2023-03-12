@@ -770,6 +770,8 @@ class Gmail(object):
             recipient = ''
             subject = ''
             msg_hdrs = {}
+            cc = ''
+            bcc = ''
             for hdr in headers:
                 if hdr['name'].lower() == 'date':
                     try:
@@ -782,6 +784,10 @@ class Gmail(object):
                     recipient = hdr['value']
                 elif hdr['name'].lower() == 'subject':
                     subject = hdr['value']
+                elif hdr['name'].lower() == 'cc':
+                    cc = hdr['value'].split(', ')
+                elif hdr['name'].lower() == 'bcc':
+                    bcc = hdr['value'].split(', ')
 
                 msg_hdrs[hdr['name']] = hdr['value']
 
@@ -809,9 +815,25 @@ class Gmail(object):
                                       part['filetype'], part['data'])
                     attms.append(attm)
 
-            return Message(self.service, self.creds, user_id, msg_id,
-                thread_id, recipient, sender, subject, date, snippet,
-                plain_msg, html_msg, label_ids, attms, msg_hdrs)
+            return Message(
+                self.service,
+                self.creds,
+                user_id,
+                msg_id,
+                thread_id,
+                recipient,
+                sender,
+                subject,
+                date,
+                snippet,
+                plain_msg,
+                html_msg,
+                label_ids,
+                attms,
+                msg_hdrs,
+                cc,
+                bcc
+            )
 
     def _evaluate_message_payload(
         self,
@@ -819,7 +841,7 @@ class Gmail(object):
         user_id: str,
         msg_id: str,
         attachments: str = 'reference'
-    ) ->List[dict]:
+    ) -> List[dict]:
         """
         Recursively evaluates a message payload.
 
