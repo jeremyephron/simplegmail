@@ -63,12 +63,12 @@ class Gmail(object):
     # Make sure the client secret file is in the root directory of your app.
 
     def __init__(
-            self,
-            client_secret_file: str = 'client_secret.json',
-            creds_file: str = 'gmail_token.json',
-            access_type: str = 'offline',
-            noauth_local_webserver: bool = False,
-            _creds: Optional[client.OAuth2Credentials] = None,
+        self,
+        client_secret_file: str = 'client_secret.json',
+        creds_file: str = 'gmail_token.json',
+        access_type: str = 'offline',
+        noauth_local_webserver: bool = False,
+        _creds: Optional[client.OAuth2Credentials] = None,
     ) -> None:
         self.client_secret_file = client_secret_file
         self.creds_file = creds_file
@@ -782,8 +782,8 @@ class Gmail(object):
             recipient = ''
             subject = ''
             msg_hdrs = {}
-            cc = ''
-            bcc = ''
+            cc = []
+            bcc = []
             for hdr in headers:
                 if hdr['name'].lower() == 'date':
                     try:
