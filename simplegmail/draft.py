@@ -13,6 +13,7 @@ from googleapiclient.errors import HttpError
 from simplegmail import label
 from simplegmail.attachment import Attachment
 from simplegmail.label import Label
+from simplegmail.message import Message
 
 
 class Draft(object):

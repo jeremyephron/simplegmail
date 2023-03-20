@@ -31,6 +31,7 @@ from oauth2client.clientsecrets import InvalidClientSecretsError
 
 from simplegmail import label
 from simplegmail.attachment import Attachment
+from simplegmail.draft import Draft
 from simplegmail.label import Label
 from simplegmail.message import Message
 
@@ -171,6 +172,63 @@ class Gmail(object):
             req = self.service.users().messages().send(userId='me', body=msg)
             res = req.execute()
             return self._build_message_from_ref(user_id, res, 'reference')
+
+        except HttpError as error:
+            # Pass along the error
+            raise error
+
+    def create_draft(
+        self,
+        sender: str,
+        to: str,
+        subject: str = '',
+        msg_html: Optional[str] = None,
+        msg_plain: Optional[str] = None,
+        cc: Optional[List[str]] = None,
+        bcc: Optional[List[str]] = None,
+        attachments: Optional[List[str]] = None,
+        signature: bool = False,
+        user_id: str = 'me'
+    ) -> Message:
+        """
+        Creates a draft.
+
+        Args:
+            sender: The email address the draft is being sent from.
+            to: The email address the draft is being sent to.
+            subject: The subject line of the email.
+            msg_html: The HTML message of the email.
+            msg_plain: The plain text alternate message of the email. This is
+                often displayed on slow or old browsers, or if the HTML message
+                is not provided.
+            cc: The list of email addresses to be cc'd.
+            bcc: The list of email addresses to be bcc'd.
+            attachments: The list of attachment file names.
+            signature: Whether the account signature should be added to the
+                draft.
+            user_id: The address of the sending account. 'me' for the
+                default address associated with the account.
+
+        Returns:
+            The Draft object representing the created draft.
+
+        Raises:
+            googleapiclient.errors.HttpError: There was an error executing the
+                HTTP request.
+
+        """
+
+        msg = {
+            'message': self._create_message(
+                sender, to, subject, msg_html, msg_plain, cc=cc, bcc=bcc,
+                attachments=attachments, signature=signature, user_id=user_id
+            )
+        }
+
+        try:
+            req = self.service.users().drafts().create(userId='me', body=msg)
+            res = req.execute()
+            return self._build_draft_from_ref(user_id, res, 'reference')
 
         except HttpError as error:
             # Pass along the error
@@ -847,6 +905,56 @@ class Gmail(object):
                 msg_hdrs,
                 cc,
                 bcc
+            )
+
+    def _build_draft_from_ref(
+        self,
+        user_id: str,
+        draft_ref: dict,
+        attachments: str = 'reference'
+    ) -> Draft:
+        """
+        Creates a Draft object from a reference.
+
+        Args:
+            user_id: The username of the account the draft belongs to.
+            draft_ref: The draft reference object returned from the Gmail
+                API.
+            attachments: Accepted values are 'ignore' which completely ignores
+                all attachments, 'reference' which includes attachment
+                information but does not download the data, and 'download' which
+                downloads the attachment data to store locally. Default
+                'reference'.
+
+        Returns:
+            The Draft object.
+
+        Raises:
+            googleapiclient.errors.HttpError: There was an error executing the
+                HTTP request.
+
+        """
+
+        try:
+            # Get draft JSON
+            draft = self.service.users().drafts().get(
+                userId=user_id, id=draft_ref['id']
+            ).execute()
+
+        except HttpError as error:
+            # Pass along the error
+            raise error
+
+        else:
+            id = draft['id']
+            message = self._build_message_from_ref(user_id, draft['message'], attachments)
+
+            return Draft(
+                self.service,
+                self.creds,
+                user_id,
+                id,
+                message
             )
 
     def _evaluate_message_payload(
