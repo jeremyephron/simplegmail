@@ -62,6 +62,10 @@ class Gmail(object):
     # https://developers.google.com/gmail/api/quickstart/python
     # Make sure the client secret file is in the root directory of your app.
 
+    # Max query results, per
+    # https://developers.google.com/gmail/api/reference/rest/v1/users.messages/list#query-parameters
+    MAX_RESULTS = 500
+
     def __init__(
         self,
         client_secret_file: str = 'client_secret.json',
@@ -72,6 +76,7 @@ class Gmail(object):
     ) -> None:
         self.client_secret_file = client_secret_file
         self.creds_file = creds_file
+        self._maxResults = 0
 
         try:
             # The file gmail_token.json stores the user's access and refresh
@@ -521,11 +526,15 @@ class Gmail(object):
         ]
 
         try:
+            max_results = self._maxResults
+            if max_results == 0:
+                max_results = self.MAX_RESULTS
             response = self.service.users().messages().list(
                 userId=user_id,
                 q=query,
                 labelIds=labels_ids,
-                includeSpamTrash=include_spam_trash
+                includeSpamTrash=include_spam_trash,
+                maxResults=max_results
             ).execute()
 
             message_refs = []
@@ -533,16 +542,24 @@ class Gmail(object):
                 message_refs.extend(response['messages'])
 
             while 'nextPageToken' in response:
+                if self._maxResults != 0:
+                    remaining = self._maxResults - len(message_refs)
+                    if remaining <= 0:
+                        break
+                    max_results = remaining
+
                 page_token = response['nextPageToken']
                 response = self.service.users().messages().list(
                     userId=user_id,
                     q=query,
                     labelIds=labels_ids,
                     includeSpamTrash=include_spam_trash,
-                    pageToken=page_token
+                    pageToken=page_token,
+                    maxResults=max_results
                 ).execute()
 
-                message_refs.extend(response['messages'])
+                if 'messages' in response:  # ensure request was successful
+                    message_refs.extend(response['messages'])
 
             return self._get_messages_from_refs(user_id, message_refs,
                                                 attachments)
@@ -1093,3 +1110,11 @@ class Gmail(object):
 
         res = req.execute()
         return res
+
+    @property
+    def maxResults(self):
+        return self._maxResults
+
+    @maxResults.setter
+    def maxResults(self, value):
+        self._maxResults = int(value)
