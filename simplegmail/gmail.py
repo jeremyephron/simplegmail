@@ -1092,7 +1092,8 @@ class Gmail(object):
 
         else:
             id = thread['id']
-            snippet = html.unescape(thread['snippet'])
+            # snippet = html.unescape(thread['snippet'])
+            snippet = ''
 
             message_refs = []
             if 'messages' in thread:  # ensure request was successful
