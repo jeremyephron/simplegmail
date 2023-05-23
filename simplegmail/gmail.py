@@ -609,6 +609,76 @@ class Gmail(object):
             # Pass along the error
             raise error
 
+    def get_threads(
+        self,
+        user_id: str = 'me',
+        labels: Optional[List[Label]] = None,
+        query: str = '',
+        attachments: str = 'reference',
+        include_spam_trash: bool = False
+    ) -> List[Message]:
+        """
+        Gets threads from your account.
+
+        Args:
+            user_id: the user's email address. Default 'me', the authenticated
+                user.
+            labels: label IDs threads must match.
+            query: a Gmail query to match.
+            attachments: accepted values are 'ignore' which completely
+                ignores all attachments, 'reference' which includes attachment
+                information but does not download the data, and 'download' which
+                downloads the attachment data to store locally. Default
+                'reference'.
+            include_spam_trash: whether to include threads from spam or trash.
+
+        Returns:
+            A list of thread objects.
+
+        Raises:
+            googleapiclient.errors.HttpError: There was an error executing the
+                HTTP request.
+
+        """
+
+        if labels is None:
+            labels = []
+
+        labels_ids = [
+            lbl.id if isinstance(lbl, Label) else lbl for lbl in labels
+        ]
+
+        try:
+            response = self.service.users().threads().list(
+                userId=user_id,
+                q=query,
+                labelIds=labels_ids,
+                includeSpamTrash=include_spam_trash
+            ).execute()
+
+            thread_refs = []
+            if 'threads' in response:  # ensure request was successful
+                thread_refs.extend(response['threads'])
+
+            while 'nextPageToken' in response:
+                page_token = response['nextPageToken']
+                response = self.service.users().threads().list(
+                    userId=user_id,
+                    q=query,
+                    labelIds=labels_ids,
+                    includeSpamTrash=include_spam_trash,
+                    pageToken=page_token
+                ).execute()
+
+                thread_refs.extend(response['threads'])
+
+            return self._get_threads_from_refs(user_id, thread_refs,
+                                                attachments)
+
+        except HttpError as error:
+            # Pass along the error
+            raise error
+
     def list_labels(self, user_id: str = 'me') -> List[Label]:
         """
         Retrieves all labels for the specified user.
@@ -786,6 +856,81 @@ class Gmail(object):
 
         return sum(message_lists, [])
 
+    def _get_threads_from_refs(
+        self,
+        user_id: str,
+        thread_refs: List[dict],
+        attachments: str = 'reference',
+        parallel: bool = True
+    ) -> List[Message]:
+        """
+        Retrieves the actual threads from a list of references.
+
+        Args:
+            user_id: The account the threads belong to.
+            thread_refs: A list of thread references with keys id, threadId.
+            attachments: Accepted values are 'ignore' which completely ignores
+                all attachments, 'reference' which includes attachment
+                information but does not download the data, and 'download'
+                which downloads the attachment data to store locally. Default
+                'reference'.
+            parallel: Whether to retrieve threads in parallel. Default true.
+                Currently parallelization is always on, since there is no
+                reason to do otherwise.
+
+
+        Returns:
+            A list of Thread objects.
+
+        Raises:
+            googleapiclient.errors.HttpError: There was an error executing the
+                HTTP request.
+
+        """
+
+        if not thread_refs:
+            return []
+
+        if not parallel:
+            return [self._build_thread_from_ref(user_id, ref, attachments)
+                    for ref in thread_refs]
+
+        max_num_threads = 12  # empirically chosen, prevents throttling
+        target_thrds_per_thread = 10  # empirically chosen
+        num_threads = min(
+            math.ceil(len(thread_refs) / target_thrds_per_thread),
+            max_num_threads
+        )
+        batch_size = math.ceil(len(thread_refs) / num_threads)
+        thread_lists = [None] * num_threads
+
+        def thread_download_batch(thread_num):
+            gmail = Gmail(_creds=self.creds)
+
+            start = thread_num * batch_size
+            end = min(len(thread_refs), (thread_num + 1) * batch_size)
+            thread_lists[thread_num] = [
+                gmail._build_thread_from_ref(
+                    user_id, thread_refs[i], attachments
+                )
+                for i in range(start, end)
+            ]
+
+            gmail.service.close()
+
+        threads = [
+            threading.Thread(target=thread_download_batch, args=(i,))
+            for i in range(num_threads)
+        ]
+
+        for t in threads:
+            t.start()
+
+        for t in threads:
+            t.join()
+
+        return sum(thread_lists, [])
+
     def _build_message_from_ref(
         self,
         user_id: str,
@@ -905,6 +1050,64 @@ class Gmail(object):
                 msg_hdrs,
                 cc,
                 bcc
+            )
+
+    def _build_thread_from_ref(
+        self,
+        user_id: str,
+        thread_ref: dict,
+        attachments: str = 'reference'
+    ) -> Message:
+        """
+        Creates a Thread object from a reference.
+
+        Args:
+            user_id: The username of the account the thread belongs to.
+            thread_ref: The thread reference object returned from the Gmail
+                API.
+            attachments: Accepted values are 'ignore' which completely ignores
+                all attachments, 'reference' which includes attachment
+                information but does not download the data, and 'download' which
+                downloads the attachment data to store locally. Default
+                'reference'.
+
+        Returns:
+            The Thread object.
+
+        Raises:
+            googleapiclient.errors.HttpError: There was an error executing the
+                HTTP request.
+
+        """
+
+        try:
+            # Get thread JSON
+            thread = self.service.users().threads().get(
+                userId=user_id, id=thread_ref['id']
+            ).execute()
+
+        except HttpError as error:
+            # Pass along the error
+            raise error
+
+        else:
+            id = thread['id']
+            snippet = html.unescape(thread['snippet'])
+
+            message_refs = []
+            if 'messages' in thread:  # ensure request was successful
+                message_refs.extend(thread['messages'])
+
+            messages =  self._get_messages_from_refs(user_id, message_refs,
+                                                    attachments)
+
+            return Thread(
+                self.service,
+                self.creds,
+                user_id,
+                id,
+                snippet,
+                messages
             )
 
     def _build_draft_from_ref(
