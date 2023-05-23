@@ -34,6 +34,7 @@ from simplegmail.attachment import Attachment
 from simplegmail.draft import Draft
 from simplegmail.label import Label
 from simplegmail.message import Message
+from simplegmail.thread import Thread
 
 
 class Gmail(object):
