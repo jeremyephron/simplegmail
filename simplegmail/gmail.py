@@ -136,6 +136,7 @@ class Gmail(object):
         in_reply_to: Optional[str] = None,
         attachments: Optional[List[str]] = None,
         signature: bool = False,
+        thread_id: Optional[str] = None,
         user_id: str = 'me'
     ) -> Message:
         """
@@ -156,6 +157,7 @@ class Gmail(object):
             attachments: The list of attachment file names.
             signature: Whether the account signature should be added to the
                 message.
+            thread_id: The thread ID to add the reply to.
             user_id: The address of the sending account. 'me' for the
                 default address associated with the account.
 
@@ -171,7 +173,7 @@ class Gmail(object):
         msg = self._create_message(
             sender, to, subject, msg_html, msg_plain, cc=cc, bcc=bcc,
             references=references, in_reply_to=in_reply_to,
-            attachments=attachments, signature=signature, user_id=user_id
+            attachments=attachments, signature=signature, thread_id=thread_id, user_id=user_id
         )
 
         try:
@@ -196,6 +198,7 @@ class Gmail(object):
         in_reply_to: Optional[str] = None,
         attachments: Optional[List[str]] = None,
         signature: bool = False,
+        thread_id: Optional[str] = None,
         user_id: str = 'me'
     ) -> Message:
         """
@@ -216,6 +219,7 @@ class Gmail(object):
             attachments: The list of attachment file names.
             signature: Whether the account signature should be added to the
                 draft.
+            thread_id: The thread ID to add the reply to.
             user_id: The address of the sending account. 'me' for the
                 default address associated with the account.
 
@@ -232,7 +236,7 @@ class Gmail(object):
             'message': self._create_message(
                 sender, to, subject, msg_html, msg_plain, cc=cc, bcc=bcc,
                 references=references, in_reply_to=in_reply_to,
-                attachments=attachments, signature=signature, user_id=user_id
+                attachments=attachments, signature=signature, thread_id=thread_id, user_id=user_id
             )
         }
 
@@ -1269,6 +1273,7 @@ class Gmail(object):
         in_reply_to: str = None,
         attachments: List[str] = None,
         signature: bool = False,
+        thread_id: str = None,
         user_id: str = 'me'
     ) -> dict:
         """
@@ -1286,6 +1291,7 @@ class Gmail(object):
             references: The list of Message-Ids to be referenced
             in_reply_to: The Message-Id to be replied to
             attachments: A list of attachment file paths.
+            thread_id: A thread ID to add the reply to.
             signature: Whether the account signature should be added to the
                 message. Will add the signature to your HTML message only, or a
                 create a HTML message if none exists.
@@ -1337,9 +1343,14 @@ class Gmail(object):
 
             self._ready_message_with_attachments(msg, attachments)
 
-        return {
+        response = {
             'raw': base64.urlsafe_b64encode(msg.as_string().encode()).decode()
         }
+
+        if thread_id:
+            response['threadId'] = thread_id
+
+        return response
 
     def _ready_message_with_attachments(
         self,
