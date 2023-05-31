@@ -132,6 +132,8 @@ class Gmail(object):
         msg_plain: Optional[str] = None,
         cc: Optional[List[str]] = None,
         bcc: Optional[List[str]] = None,
+        references: Optional[List[str]] = None,
+        in_reply_to: Optional[str] = None,
         attachments: Optional[List[str]] = None,
         signature: bool = False,
         user_id: str = 'me'
@@ -149,6 +151,8 @@ class Gmail(object):
                 is not provided.
             cc: The list of email addresses to be cc'd.
             bcc: The list of email addresses to be bcc'd.
+            references: The list of Message-Ids to be referenced.
+            in_reply_to: The Message-Id to be replied to.
             attachments: The list of attachment file names.
             signature: Whether the account signature should be added to the
                 message.
@@ -166,6 +170,7 @@ class Gmail(object):
 
         msg = self._create_message(
             sender, to, subject, msg_html, msg_plain, cc=cc, bcc=bcc,
+            references=references, in_reply_to=in_reply_to,
             attachments=attachments, signature=signature, user_id=user_id
         )
 
@@ -187,6 +192,8 @@ class Gmail(object):
         msg_plain: Optional[str] = None,
         cc: Optional[List[str]] = None,
         bcc: Optional[List[str]] = None,
+        references: Optional[List[str]] = None,
+        in_reply_to: Optional[str] = None,
         attachments: Optional[List[str]] = None,
         signature: bool = False,
         user_id: str = 'me'
@@ -204,6 +211,8 @@ class Gmail(object):
                 is not provided.
             cc: The list of email addresses to be cc'd.
             bcc: The list of email addresses to be bcc'd.
+            references: The list of Message-Ids to be referenced.
+            in_reply_to: The Message-Id to be replied to.
             attachments: The list of attachment file names.
             signature: Whether the account signature should be added to the
                 draft.
@@ -222,6 +231,7 @@ class Gmail(object):
         msg = {
             'message': self._create_message(
                 sender, to, subject, msg_html, msg_plain, cc=cc, bcc=bcc,
+                references=references, in_reply_to=in_reply_to,
                 attachments=attachments, signature=signature, user_id=user_id
             )
         }
@@ -1255,6 +1265,8 @@ class Gmail(object):
         msg_plain: str = None,
         cc: List[str] = None,
         bcc: List[str] = None,
+        references: List[str] = None,
+        in_reply_to: str = None,
         attachments: List[str] = None,
         signature: bool = False,
         user_id: str = 'me'
@@ -1271,6 +1283,8 @@ class Gmail(object):
                 or old browsers).
             cc: The list of email addresses to be Cc'd.
             bcc: The list of email addresses to be Bcc'd
+            references: The list of Message-Ids to be referenced
+            in_reply_to: The Message-Id to be replied to
             attachments: A list of attachment file paths.
             signature: Whether the account signature should be added to the
                 message. Will add the signature to your HTML message only, or a
@@ -1291,6 +1305,12 @@ class Gmail(object):
 
         if bcc:
             msg['Bcc'] = ', '.join(bcc)
+
+        if references:
+            msg['References'] = ' '.join(references)
+
+        if in_reply_to:
+            msg['In-Reply-To'] = in_reply_to
 
         if signature:
             m = re.match(r'.+\s<(?P<addr>.+@.+\..+)>', sender)
