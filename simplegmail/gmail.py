@@ -131,6 +131,7 @@ class Gmail(object):
         cc: Optional[List[str]] = None,
         bcc: Optional[List[str]] = None,
         attachments: Optional[List[str]] = None,
+        thread_id: Optional[str] = None,
         signature: bool = False,
         user_id: str = 'me'
     ) -> Message:
@@ -166,6 +167,9 @@ class Gmail(object):
             sender, to, subject, msg_html, msg_plain, cc=cc, bcc=bcc,
             attachments=attachments, signature=signature, user_id=user_id
         )
+
+        if thread_id:
+            msg['threadId'] = thread_id
 
         try:
             req = self.service.users().messages().send(userId='me', body=msg)

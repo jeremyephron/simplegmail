@@ -120,3 +120,4 @@ gmail_token.json
 test.py
 
 .DS_Store
+.idea/
