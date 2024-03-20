@@ -1,9 +1,7 @@
-import pytz
 import pandas as pd
 from datetime import datetime, timedelta
 from simplegmail import Gmail
 from simplegmail import GmailDownloader
-from simplegmail import current_hkt_timestamp
 
 # Function to generate monthly date ranges
 def month_range(start_date, end_date):
