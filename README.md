@@ -48,10 +48,11 @@ Gmail and enable.
 
 3. Click on the Credentials tab, then "Create Credentials" > "OAuth client ID".
 
-4. Select what kind of application this is for, and give it a memorable name.
-Fill out all necessary information for the credential (e.g., if choosing 
-"Web Application" make sure to add an Authorized Redirect URI. See 
-https://developers.google.com/identity/protocols/oauth2 for more infomation).
+4. Choose the type of application you’re creating and assign it a distinctive name.
+For a straightforward setup, opt for ‘Desktop Application’.
+If you select ‘Web Application’, remember to specify an Authorized Redirect URI.
+Refer to the OAuth2 guidelines for detailed instructions.
+(See https://developers.google.com/identity/protocols/oauth2 for more infomation).
 
 5. Back on the credentials screen, click the download icon next to the 
 credential you just created to download it as a JSON object.
