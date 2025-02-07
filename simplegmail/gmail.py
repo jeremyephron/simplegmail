@@ -69,6 +69,7 @@ class Gmail(object):
         access_type: str = 'offline',
         noauth_local_webserver: bool = False,
         _creds: Optional[client.OAuth2Credentials] = None,
+        use_envvars: bool = False
     ) -> None:
         self.client_secret_file = client_secret_file
         self.creds_file = creds_file
@@ -79,6 +80,13 @@ class Gmail(object):
             # completes for the first time.
             if _creds:
                 self.creds = _creds
+            elif use_envvars:
+                # This requires that the environment variable 
+                # 'SIMPLEGMAIL_CREDENTIALS' be set to an already authorized
+                # gmail_token.json contents. This gives the refresh token 
+                # that can be used indefinitely until revoked.
+                self.creds = client.OAuth2Credentials.from_json(
+                    os.environ.get('SIMPLEGMAIL_CREDENTIALS'))
             else:
                 store = file.Storage(self.creds_file)
                 self.creds = store.get()
