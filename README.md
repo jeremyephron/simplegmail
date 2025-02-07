@@ -65,6 +65,9 @@ will open, and you'll be asked to give permissions to the application. This
 will save an access token in a file named "gmail-token.json", and only needs to 
 occur once.
 
+Additionally, you will need to ensure IMAP is enabled in your Gmail account
+settings.
+
 You are now good to go!
 
 Note about authentication method: I have opted not to use a username-password 
