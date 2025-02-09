@@ -826,7 +826,7 @@ class Gmail(object):
                 elif part['part_type'] == 'attachment':
                     attm = Attachment(self.service, user_id, msg_id,
                                       part['attachment_id'], part['filename'],
-                                      part['filetype'], part['data'])
+                                      part['filetype'], part['headers'], part['data'])
                     attms.append(attm)
 
             return Message(
@@ -892,6 +892,7 @@ class Gmail(object):
                 'filetype': payload['mimeType'],
                 'filename': filename,
                 'attachment_id': att_id,
+                'headers': payload['headers'],
                 'data': None
             }
 
