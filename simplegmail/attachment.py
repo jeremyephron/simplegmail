@@ -11,7 +11,7 @@ from typing import Optional
 
 class Attachment(object):
     """
-    The Attachment class for attachments to emails in your Gmail mailbox. This 
+    The Attachment class for attachments to emails in your Gmail mailbox. This
     class should not be manually instantiated.
 
     Args:
@@ -22,6 +22,7 @@ class Attachment(object):
         filename: The filename associated with the attachment.
         filetype: The mime type of the file.
         data: The raw data of the file. Default None.
+        headers: A dict of header name/value pairs of the attachment. Default {}.
 
     Attributes:
         _service (googleapiclient.discovery.Resource): The Gmail service object.
@@ -31,9 +32,10 @@ class Attachment(object):
         filename (str): The filename associated with the attachment.
         filetype (str): The mime type of the file.
         data (bytes): The raw data of the file.
+        headers (dict): A dict of header name/value pairs of the attachment.
 
     """
-    
+
     def __init__(
         self,
         service: 'googleapiclient.discovery.Resource',
@@ -42,7 +44,8 @@ class Attachment(object):
         att_id: str,
         filename: str,
         filetype: str,
-        data: Optional[bytes] = None
+        data: Optional[bytes] = None,
+        headers: Optional[dict] = {}
     ) -> None:
         self._service = service
         self.user_id = user_id
@@ -51,17 +54,18 @@ class Attachment(object):
         self.filename = filename
         self.filetype = filetype
         self.data = data
+        self.headers = headers
 
     def download(self) -> None:
         """
         Downloads the data for an attachment if it does not exist.
-        
+
         Raises:
-            googleapiclient.errors.HttpError: There was an error executing the 
+            googleapiclient.errors.HttpError: There was an error executing the
                 HTTP request.
-        
+
         """
-        
+
         if self.data is not None:
             return
 
@@ -79,18 +83,18 @@ class Attachment(object):
     ) -> None:
         """
         Saves the attachment. Downloads file data if not downloaded.
-        
+
         Args:
-            filepath: where to save the attachment. Default None, which uses 
+            filepath: where to save the attachment. Default None, which uses
                 the filename stored.
             overwrite: whether to overwrite existing files. Default False.
-        
+
         Raises:
-            FileExistsError: if the call would overwrite an existing file and 
+            FileExistsError: if the call would overwrite an existing file and
                 overwrite is not set to True.
-        
+
         """
-        
+
         if filepath is None:
             filepath = self.filename
 
@@ -105,4 +109,3 @@ class Attachment(object):
 
         with open(filepath, 'wb') as f:
             f.write(self.data)
-
