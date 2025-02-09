@@ -31,8 +31,10 @@ from oauth2client.clientsecrets import InvalidClientSecretsError
 
 from simplegmail import label
 from simplegmail.attachment import Attachment
+from simplegmail.draft import Draft
 from simplegmail.label import Label
 from simplegmail.message import Message
+from simplegmail.thread import Thread
 
 
 class Gmail(object):
@@ -130,8 +132,11 @@ class Gmail(object):
         msg_plain: Optional[str] = None,
         cc: Optional[List[str]] = None,
         bcc: Optional[List[str]] = None,
+        references: Optional[List[str]] = None,
+        in_reply_to: Optional[str] = None,
         attachments: Optional[List[str]] = None,
         signature: bool = False,
+        thread_id: Optional[str] = None,
         user_id: str = 'me'
     ) -> Message:
         """
@@ -147,9 +152,12 @@ class Gmail(object):
                 is not provided.
             cc: The list of email addresses to be cc'd.
             bcc: The list of email addresses to be bcc'd.
+            references: The list of Message-Ids to be referenced.
+            in_reply_to: The Message-Id to be replied to.
             attachments: The list of attachment file names.
             signature: Whether the account signature should be added to the
                 message.
+            thread_id: The thread ID to add the reply to.
             user_id: The address of the sending account. 'me' for the
                 default address associated with the account.
 
@@ -164,13 +172,78 @@ class Gmail(object):
 
         msg = self._create_message(
             sender, to, subject, msg_html, msg_plain, cc=cc, bcc=bcc,
-            attachments=attachments, signature=signature, user_id=user_id
+            references=references, in_reply_to=in_reply_to,
+            attachments=attachments, signature=signature, thread_id=thread_id, user_id=user_id
         )
 
         try:
             req = self.service.users().messages().send(userId='me', body=msg)
             res = req.execute()
             return self._build_message_from_ref(user_id, res, 'reference')
+
+        except HttpError as error:
+            # Pass along the error
+            raise error
+
+    def create_draft(
+        self,
+        sender: str,
+        to: str,
+        subject: str = '',
+        msg_html: Optional[str] = None,
+        msg_plain: Optional[str] = None,
+        cc: Optional[List[str]] = None,
+        bcc: Optional[List[str]] = None,
+        references: Optional[List[str]] = None,
+        in_reply_to: Optional[str] = None,
+        attachments: Optional[List[str]] = None,
+        signature: bool = False,
+        thread_id: Optional[str] = None,
+        user_id: str = 'me'
+    ) -> Message:
+        """
+        Creates a draft.
+
+        Args:
+            sender: The email address the draft is being sent from.
+            to: The email address the draft is being sent to.
+            subject: The subject line of the email.
+            msg_html: The HTML message of the email.
+            msg_plain: The plain text alternate message of the email. This is
+                often displayed on slow or old browsers, or if the HTML message
+                is not provided.
+            cc: The list of email addresses to be cc'd.
+            bcc: The list of email addresses to be bcc'd.
+            references: The list of Message-Ids to be referenced.
+            in_reply_to: The Message-Id to be replied to.
+            attachments: The list of attachment file names.
+            signature: Whether the account signature should be added to the
+                draft.
+            thread_id: The thread ID to add the reply to.
+            user_id: The address of the sending account. 'me' for the
+                default address associated with the account.
+
+        Returns:
+            The Draft object representing the created draft.
+
+        Raises:
+            googleapiclient.errors.HttpError: There was an error executing the
+                HTTP request.
+
+        """
+
+        msg = {
+            'message': self._create_message(
+                sender, to, subject, msg_html, msg_plain, cc=cc, bcc=bcc,
+                references=references, in_reply_to=in_reply_to,
+                attachments=attachments, signature=signature, thread_id=thread_id, user_id=user_id
+            )
+        }
+
+        try:
+            req = self.service.users().drafts().create(userId='me', body=msg)
+            res = req.execute()
+            return self._build_draft_from_ref(user_id, res, 'reference')
 
         except HttpError as error:
             # Pass along the error
@@ -551,6 +624,76 @@ class Gmail(object):
             # Pass along the error
             raise error
 
+    def get_threads(
+        self,
+        user_id: str = 'me',
+        labels: Optional[List[Label]] = None,
+        query: str = '',
+        attachments: str = 'reference',
+        include_spam_trash: bool = False
+    ) -> List[Message]:
+        """
+        Gets threads from your account.
+
+        Args:
+            user_id: the user's email address. Default 'me', the authenticated
+                user.
+            labels: label IDs threads must match.
+            query: a Gmail query to match.
+            attachments: accepted values are 'ignore' which completely
+                ignores all attachments, 'reference' which includes attachment
+                information but does not download the data, and 'download' which
+                downloads the attachment data to store locally. Default
+                'reference'.
+            include_spam_trash: whether to include threads from spam or trash.
+
+        Returns:
+            A list of thread objects.
+
+        Raises:
+            googleapiclient.errors.HttpError: There was an error executing the
+                HTTP request.
+
+        """
+
+        if labels is None:
+            labels = []
+
+        labels_ids = [
+            lbl.id if isinstance(lbl, Label) else lbl for lbl in labels
+        ]
+
+        try:
+            response = self.service.users().threads().list(
+                userId=user_id,
+                q=query,
+                labelIds=labels_ids,
+                includeSpamTrash=include_spam_trash
+            ).execute()
+
+            thread_refs = []
+            if 'threads' in response:  # ensure request was successful
+                thread_refs.extend(response['threads'])
+
+            while 'nextPageToken' in response:
+                page_token = response['nextPageToken']
+                response = self.service.users().threads().list(
+                    userId=user_id,
+                    q=query,
+                    labelIds=labels_ids,
+                    includeSpamTrash=include_spam_trash,
+                    pageToken=page_token
+                ).execute()
+
+                thread_refs.extend(response['threads'])
+
+            return self._get_threads_from_refs(user_id, thread_refs,
+                                                attachments)
+
+        except HttpError as error:
+            # Pass along the error
+            raise error
+
     def list_labels(self, user_id: str = 'me') -> List[Label]:
         """
         Retrieves all labels for the specified user.
@@ -728,6 +871,81 @@ class Gmail(object):
 
         return sum(message_lists, [])
 
+    def _get_threads_from_refs(
+        self,
+        user_id: str,
+        thread_refs: List[dict],
+        attachments: str = 'reference',
+        parallel: bool = True
+    ) -> List[Message]:
+        """
+        Retrieves the actual threads from a list of references.
+
+        Args:
+            user_id: The account the threads belong to.
+            thread_refs: A list of thread references with keys id, threadId.
+            attachments: Accepted values are 'ignore' which completely ignores
+                all attachments, 'reference' which includes attachment
+                information but does not download the data, and 'download'
+                which downloads the attachment data to store locally. Default
+                'reference'.
+            parallel: Whether to retrieve threads in parallel. Default true.
+                Currently parallelization is always on, since there is no
+                reason to do otherwise.
+
+
+        Returns:
+            A list of Thread objects.
+
+        Raises:
+            googleapiclient.errors.HttpError: There was an error executing the
+                HTTP request.
+
+        """
+
+        if not thread_refs:
+            return []
+
+        if not parallel:
+            return [self._build_thread_from_ref(user_id, ref, attachments)
+                    for ref in thread_refs]
+
+        max_num_threads = 12  # empirically chosen, prevents throttling
+        target_thrds_per_thread = 10  # empirically chosen
+        num_threads = min(
+            math.ceil(len(thread_refs) / target_thrds_per_thread),
+            max_num_threads
+        )
+        batch_size = math.ceil(len(thread_refs) / num_threads)
+        thread_lists = [None] * num_threads
+
+        def thread_download_batch(thread_num):
+            gmail = Gmail(_creds=self.creds)
+
+            start = thread_num * batch_size
+            end = min(len(thread_refs), (thread_num + 1) * batch_size)
+            thread_lists[thread_num] = [
+                gmail._build_thread_from_ref(
+                    user_id, thread_refs[i], attachments
+                )
+                for i in range(start, end)
+            ]
+
+            gmail.service.close()
+
+        threads = [
+            threading.Thread(target=thread_download_batch, args=(i,))
+            for i in range(num_threads)
+        ]
+
+        for t in threads:
+            t.start()
+
+        for t in threads:
+            t.join()
+
+        return sum(thread_lists, [])
+
     def _build_message_from_ref(
         self,
         user_id: str,
@@ -849,6 +1067,115 @@ class Gmail(object):
                 bcc
             )
 
+    def _build_thread_from_ref(
+        self,
+        user_id: str,
+        thread_ref: dict,
+        attachments: str = 'reference'
+    ) -> Message:
+        """
+        Creates a Thread object from a reference.
+
+        Args:
+            user_id: The username of the account the thread belongs to.
+            thread_ref: The thread reference object returned from the Gmail
+                API.
+            attachments: Accepted values are 'ignore' which completely ignores
+                all attachments, 'reference' which includes attachment
+                information but does not download the data, and 'download' which
+                downloads the attachment data to store locally. Default
+                'reference'.
+
+        Returns:
+            The Thread object.
+
+        Raises:
+            googleapiclient.errors.HttpError: There was an error executing the
+                HTTP request.
+
+        """
+
+        try:
+            # Get thread JSON
+            thread = self.service.users().threads().get(
+                userId=user_id, id=thread_ref['id']
+            ).execute()
+
+        except HttpError as error:
+            # Pass along the error
+            raise error
+
+        else:
+            id = thread['id']
+            # snippet = html.unescape(thread['snippet'])
+            snippet = ''
+
+            message_refs = []
+            if 'messages' in thread:  # ensure request was successful
+                message_refs.extend(thread['messages'])
+
+            messages =  self._get_messages_from_refs(user_id, message_refs,
+                                                    attachments)
+
+            return Thread(
+                self.service,
+                self.creds,
+                user_id,
+                id,
+                snippet,
+                messages
+            )
+
+    def _build_draft_from_ref(
+        self,
+        user_id: str,
+        draft_ref: dict,
+        attachments: str = 'reference'
+    ) -> Draft:
+        """
+        Creates a Draft object from a reference.
+
+        Args:
+            user_id: The username of the account the draft belongs to.
+            draft_ref: The draft reference object returned from the Gmail
+                API.
+            attachments: Accepted values are 'ignore' which completely ignores
+                all attachments, 'reference' which includes attachment
+                information but does not download the data, and 'download' which
+                downloads the attachment data to store locally. Default
+                'reference'.
+
+        Returns:
+            The Draft object.
+
+        Raises:
+            googleapiclient.errors.HttpError: There was an error executing the
+                HTTP request.
+
+        """
+
+        try:
+            # Get draft JSON
+            draft = self.service.users().drafts().get(
+                userId=user_id, id=draft_ref['id']
+            ).execute()
+
+        except HttpError as error:
+            # Pass along the error
+            raise error
+
+        else:
+            id = draft['id']
+            message = self._build_message_from_ref(user_id, draft['message'], attachments)
+
+            return Draft(
+                self.service,
+                self.creds,
+                user_id,
+                id,
+                message
+            )
+
     def _evaluate_message_payload(
         self,
         payload: dict,
@@ -942,8 +1269,11 @@ class Gmail(object):
         msg_plain: str = None,
         cc: List[str] = None,
         bcc: List[str] = None,
+        references: List[str] = None,
+        in_reply_to: str = None,
         attachments: List[str] = None,
         signature: bool = False,
+        thread_id: str = None,
         user_id: str = 'me'
     ) -> dict:
         """
@@ -958,7 +1288,10 @@ class Gmail(object):
                 or old browsers).
             cc: The list of email addresses to be Cc'd.
             bcc: The list of email addresses to be Bcc'd
+            references: The list of Message-Ids to be referenced
+            in_reply_to: The Message-Id to be replied to
             attachments: A list of attachment file paths.
+            thread_id: A thread ID to add the reply to.
             signature: Whether the account signature should be added to the
                 message. Will add the signature to your HTML message only, or a
                 create a HTML message if none exists.
@@ -978,6 +1311,12 @@ class Gmail(object):
 
         if bcc:
             msg['Bcc'] = ', '.join(bcc)
+
+        if references:
+            msg['References'] = ' '.join(references)
+
+        if in_reply_to:
+            msg['In-Reply-To'] = in_reply_to
 
         if signature:
             m = re.match(r'.+\s<(?P<addr>.+@.+\..+)>', sender)
@@ -1004,9 +1343,14 @@ class Gmail(object):
 
             self._ready_message_with_attachments(msg, attachments)
 
-        return {
+        response = {
             'raw': base64.urlsafe_b64encode(msg.as_string().encode()).decode()
         }
+
+        if thread_id:
+            response['threadId'] = thread_id
+
+        return response
 
     def _ready_message_with_attachments(
         self,
