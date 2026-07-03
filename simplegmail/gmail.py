@@ -19,7 +19,7 @@ import mimetypes
 import os
 import re
 import threading
-from typing import List, Optional
+from typing import Iterator, List, Optional
 
 from bs4 import BeautifulSoup
 import dateutil.parser as parser
@@ -181,8 +181,9 @@ class Gmail(object):
         user_id: str = 'me',
         labels: Optional[List[Label]] = None,
         query: str = '',
-        attachments: str = 'reference'
-    ) -> List[Message]:
+        attachments: str = 'reference',
+        page_size: int = 100
+    ) -> Iterator[Message]:
         """
         Gets unread messages from your inbox.
 
@@ -196,13 +197,23 @@ class Gmail(object):
                 information but does not download the data, and 'download' which
                 downloads the attachment data to store locally. Default
                 'reference'.
+            page_size: The number of message references fetched per API page,
+                between 1 and 500. Smaller values yield the first message
+                sooner; larger values scan large mailboxes with fewer
+                requests. Default 100.
 
         Returns:
-            A list of message objects.
+            An iterator over Message objects, fetched lazily in pages of
+            `page_size`. The iterator can only be consumed once; wrap it in
+            `list()` to fetch everything eagerly.
 
         Raises:
+            ValueError: An invalid value was provided for `attachments` or
+                `page_size`.
             googleapiclient.errors.HttpError: There was an error executing the
-                HTTP request.
+                HTTP request. Errors listing the first page of results are
+                raised by this call; all other errors (downloading messages
+                and listing later pages) are raised while iterating.
 
         """
 
@@ -210,7 +221,8 @@ class Gmail(object):
             labels = []
 
         labels.append(label.INBOX)
-        return self.get_unread_messages(user_id, labels, query)
+        return self.get_unread_messages(user_id, labels, query, attachments,
+                                        page_size=page_size)
 
     def get_starred_messages(
         self,
@@ -218,8 +230,9 @@ class Gmail(object):
         labels: Optional[List[Label]] = None,
         query: str = '',
         attachments: str = 'reference',
-        include_spam_trash: bool = False
-    ) -> List[Message]:
+        include_spam_trash: bool = False,
+        page_size: int = 100
+    ) -> Iterator[Message]:
         """
         Gets starred messages from your account.
 
@@ -234,13 +247,23 @@ class Gmail(object):
                 downloads the attachment data to store locally. Default
                 'reference'.
             include_spam_trash: Whether to include messages from spam or trash.
+            page_size: The number of message references fetched per API page,
+                between 1 and 500. Smaller values yield the first message
+                sooner; larger values scan large mailboxes with fewer
+                requests. Default 100.
 
         Returns:
-            A list of message objects.
+            An iterator over Message objects, fetched lazily in pages of
+            `page_size`. The iterator can only be consumed once; wrap it in
+            `list()` to fetch everything eagerly.
 
         Raises:
+            ValueError: An invalid value was provided for `attachments` or
+                `page_size`.
             googleapiclient.errors.HttpError: There was an error executing the
-                HTTP request.
+                HTTP request. Errors listing the first page of results are
+                raised by this call; all other errors (downloading messages
+                and listing later pages) are raised while iterating.
 
         """
 
@@ -249,7 +272,7 @@ class Gmail(object):
 
         labels.append(label.STARRED)
         return self.get_messages(user_id, labels, query, attachments,
-                                 include_spam_trash)
+                                 include_spam_trash, page_size=page_size)
 
     def get_important_messages(
         self,
@@ -257,8 +280,9 @@ class Gmail(object):
         labels: Optional[List[Label]] = None,
         query: str = '',
         attachments: str = 'reference',
-        include_spam_trash: bool = False
-    ) -> List[Message]:
+        include_spam_trash: bool = False,
+        page_size: int = 100
+    ) -> Iterator[Message]:
         """
         Gets messages marked important from your account.
 
@@ -273,13 +297,23 @@ class Gmail(object):
                 downloads the attachment data to store locally. Default
                 'reference'.
             include_spam_trash: Whether to include messages from spam or trash.
+            page_size: The number of message references fetched per API page,
+                between 1 and 500. Smaller values yield the first message
+                sooner; larger values scan large mailboxes with fewer
+                requests. Default 100.
 
         Returns:
-            A list of message objects.
+            An iterator over Message objects, fetched lazily in pages of
+            `page_size`. The iterator can only be consumed once; wrap it in
+            `list()` to fetch everything eagerly.
 
         Raises:
+            ValueError: An invalid value was provided for `attachments` or
+                `page_size`.
             googleapiclient.errors.HttpError: There was an error executing the
-                HTTP request.
+                HTTP request. Errors listing the first page of results are
+                raised by this call; all other errors (downloading messages
+                and listing later pages) are raised while iterating.
 
         """
 
@@ -288,7 +322,7 @@ class Gmail(object):
 
         labels.append(label.IMPORTANT)
         return self.get_messages(user_id, labels, query, attachments,
-                                 include_spam_trash)
+                                 include_spam_trash, page_size=page_size)
 
     def get_unread_messages(
         self,
@@ -296,8 +330,9 @@ class Gmail(object):
         labels: Optional[List[Label]] = None,
         query: str = '',
         attachments: str = 'reference',
-        include_spam_trash: bool = False
-    ) -> List[Message]:
+        include_spam_trash: bool = False,
+        page_size: int = 100
+    ) -> Iterator[Message]:
         """
         Gets unread messages from your account.
 
@@ -312,13 +347,23 @@ class Gmail(object):
                 downloads the attachment data to store locally. Default
                 'reference'.
             include_spam_trash: Whether to include messages from spam or trash.
+            page_size: The number of message references fetched per API page,
+                between 1 and 500. Smaller values yield the first message
+                sooner; larger values scan large mailboxes with fewer
+                requests. Default 100.
 
         Returns:
-            A list of message objects.
+            An iterator over Message objects, fetched lazily in pages of
+            `page_size`. The iterator can only be consumed once; wrap it in
+            `list()` to fetch everything eagerly.
 
         Raises:
+            ValueError: An invalid value was provided for `attachments` or
+                `page_size`.
             googleapiclient.errors.HttpError: There was an error executing the
-                HTTP request.
+                HTTP request. Errors listing the first page of results are
+                raised by this call; all other errors (downloading messages
+                and listing later pages) are raised while iterating.
 
         """
 
@@ -327,7 +372,7 @@ class Gmail(object):
 
         labels.append(label.UNREAD)
         return self.get_messages(user_id, labels, query, attachments,
-                                 include_spam_trash)
+                                 include_spam_trash, page_size=page_size)
 
     def get_drafts(
         self,
@@ -335,8 +380,9 @@ class Gmail(object):
         labels: Optional[List[Label]] = None,
         query: str = '',
         attachments: str = 'reference',
-        include_spam_trash: bool = False
-    ) -> List[Message]:
+        include_spam_trash: bool = False,
+        page_size: int = 100
+    ) -> Iterator[Message]:
         """
         Gets drafts saved in your account.
 
@@ -351,13 +397,23 @@ class Gmail(object):
                 downloads the attachment data to store locally. Default
                 'reference'.
             include_spam_trash: Whether to include messages from spam or trash.
+            page_size: The number of message references fetched per API page,
+                between 1 and 500. Smaller values yield the first message
+                sooner; larger values scan large mailboxes with fewer
+                requests. Default 100.
 
         Returns:
-            A list of message objects.
+            An iterator over Message objects, fetched lazily in pages of
+            `page_size`. The iterator can only be consumed once; wrap it in
+            `list()` to fetch everything eagerly.
 
         Raises:
+            ValueError: An invalid value was provided for `attachments` or
+                `page_size`.
             googleapiclient.errors.HttpError: There was an error executing the
-                HTTP request.
+                HTTP request. Errors listing the first page of results are
+                raised by this call; all other errors (downloading messages
+                and listing later pages) are raised while iterating.
 
         """
 
@@ -366,7 +422,7 @@ class Gmail(object):
 
         labels.append(label.DRAFT)
         return self.get_messages(user_id, labels, query, attachments,
-                                 include_spam_trash)
+                                 include_spam_trash, page_size=page_size)
 
     def get_sent_messages(
         self,
@@ -374,8 +430,9 @@ class Gmail(object):
         labels: Optional[List[Label]] = None,
         query: str = '',
         attachments: str = 'reference',
-        include_spam_trash: bool = False
-    ) -> List[Message]:
+        include_spam_trash: bool = False,
+        page_size: int = 100
+    ) -> Iterator[Message]:
         """
         Gets sent messages from your account.
 
@@ -390,13 +447,23 @@ class Gmail(object):
                 downloads the attachment data to store locally. Default
                 'reference'.
             include_spam_trash: Whether to include messages from spam or trash.
+            page_size: The number of message references fetched per API page,
+                between 1 and 500. Smaller values yield the first message
+                sooner; larger values scan large mailboxes with fewer
+                requests. Default 100.
 
         Returns:
-            A list of message objects.
+            An iterator over Message objects, fetched lazily in pages of
+            `page_size`. The iterator can only be consumed once; wrap it in
+            `list()` to fetch everything eagerly.
 
         Raises:
+            ValueError: An invalid value was provided for `attachments` or
+                `page_size`.
             googleapiclient.errors.HttpError: There was an error executing the
-                HTTP request.
+                HTTP request. Errors listing the first page of results are
+                raised by this call; all other errors (downloading messages
+                and listing later pages) are raised while iterating.
 
         """
 
@@ -405,15 +472,16 @@ class Gmail(object):
 
         labels.append(label.SENT)
         return self.get_messages(user_id, labels, query, attachments,
-                                 include_spam_trash)
+                                 include_spam_trash, page_size=page_size)
 
     def get_trash_messages(
         self,
         user_id: str = 'me',
         labels: Optional[List[Label]] = None,
         query: str = '',
-        attachments: str = 'reference'
-    ) -> List[Message]:
+        attachments: str = 'reference',
+        page_size: int = 100
+    ) -> Iterator[Message]:
 
         """
         Gets messages in your trash from your account.
@@ -428,13 +496,23 @@ class Gmail(object):
                 information but does not download the data, and 'download' which
                 downloads the attachment data to store locally. Default
                 'reference'.
+            page_size: The number of message references fetched per API page,
+                between 1 and 500. Smaller values yield the first message
+                sooner; larger values scan large mailboxes with fewer
+                requests. Default 100.
 
         Returns:
-            A list of message objects.
+            An iterator over Message objects, fetched lazily in pages of
+            `page_size`. The iterator can only be consumed once; wrap it in
+            `list()` to fetch everything eagerly.
 
         Raises:
+            ValueError: An invalid value was provided for `attachments` or
+                `page_size`.
             googleapiclient.errors.HttpError: There was an error executing the
-                HTTP request.
+                HTTP request. Errors listing the first page of results are
+                raised by this call; all other errors (downloading messages
+                and listing later pages) are raised while iterating.
 
         """
 
@@ -442,15 +520,17 @@ class Gmail(object):
             labels = []
 
         labels.append(label.TRASH)
-        return self.get_messages(user_id, labels, query, attachments, True)
+        return self.get_messages(user_id, labels, query, attachments, True,
+                                 page_size=page_size)
 
     def get_spam_messages(
         self,
         user_id: str = 'me',
         labels: Optional[List[Label]] = None,
         query: str = '',
-        attachments: str = 'reference'
-    ) -> List[Message]:
+        attachments: str = 'reference',
+        page_size: int = 100
+    ) -> Iterator[Message]:
         """
         Gets messages marked as spam from your account.
 
@@ -464,13 +544,23 @@ class Gmail(object):
                 information but does not download the data, and 'download' which
                 downloads the attachment data to store locally. Default
                 'reference'.
+            page_size: The number of message references fetched per API page,
+                between 1 and 500. Smaller values yield the first message
+                sooner; larger values scan large mailboxes with fewer
+                requests. Default 100.
 
         Returns:
-            A list of message objects.
+            An iterator over Message objects, fetched lazily in pages of
+            `page_size`. The iterator can only be consumed once; wrap it in
+            `list()` to fetch everything eagerly.
 
         Raises:
+            ValueError: An invalid value was provided for `attachments` or
+                `page_size`.
             googleapiclient.errors.HttpError: There was an error executing the
-                HTTP request.
+                HTTP request. Errors listing the first page of results are
+                raised by this call; all other errors (downloading messages
+                and listing later pages) are raised while iterating.
 
         """
 
@@ -479,7 +569,8 @@ class Gmail(object):
             labels = []
 
         labels.append(label.SPAM)
-        return self.get_messages(user_id, labels, query, attachments, True)
+        return self.get_messages(user_id, labels, query, attachments, True,
+                                 page_size=page_size)
 
     def get_messages(
         self,
@@ -487,10 +578,11 @@ class Gmail(object):
         labels: Optional[List[Label]] = None,
         query: str = '',
         attachments: str = 'reference',
-        include_spam_trash: bool = False
-    ) -> List[Message]:
+        include_spam_trash: bool = False,
+        page_size: int = 100
+    ) -> Iterator[Message]:
         """
-        Gets messages from your account.
+        Gets messages from your account, lazily, one page at a time.
 
         Args:
             user_id: the user's email address. Default 'me', the authenticated
@@ -503,15 +595,36 @@ class Gmail(object):
                 downloads the attachment data to store locally. Default
                 'reference'.
             include_spam_trash: whether to include messages from spam or trash.
+            page_size: the number of message references fetched per API page,
+                between 1 and 500. Smaller values yield the first message
+                sooner; larger values scan large mailboxes with fewer
+                requests. Default 100.
 
         Returns:
-            A list of message objects.
+            An iterator over Message objects, fetched lazily in pages of
+            `page_size`. The iterator can only be consumed once; wrap it in
+            `list()` to fetch everything eagerly.
 
         Raises:
+            ValueError: An invalid value was provided for `attachments` or
+                `page_size`.
             googleapiclient.errors.HttpError: There was an error executing the
-                HTTP request.
+                HTTP request. Errors listing the first page of results are
+                raised by this call; all other errors (downloading messages
+                and listing later pages) are raised while iterating.
 
         """
+
+        if attachments not in ('ignore', 'reference', 'download'):
+            raise ValueError(
+                f"Unrecognized option '{attachments}' for attachments, "
+                "expected one of 'ignore', 'reference', or 'download'."
+            )
+
+        if not 1 <= page_size <= 500:
+            raise ValueError(
+                f"page_size must be between 1 and 500, got {page_size}."
+            )
 
         if labels is None:
             labels = []
@@ -525,31 +638,71 @@ class Gmail(object):
                 userId=user_id,
                 q=query,
                 labelIds=labels_ids,
-                includeSpamTrash=include_spam_trash
+                includeSpamTrash=include_spam_trash,
+                maxResults=page_size
             ).execute()
-
-            message_refs = []
-            if 'messages' in response:  # ensure request was successful
-                message_refs.extend(response['messages'])
-
-            while 'nextPageToken' in response:
-                page_token = response['nextPageToken']
-                response = self.service.users().messages().list(
-                    userId=user_id,
-                    q=query,
-                    labelIds=labels_ids,
-                    includeSpamTrash=include_spam_trash,
-                    pageToken=page_token
-                ).execute()
-
-                message_refs.extend(response['messages'])
-
-            return self._get_messages_from_refs(user_id, message_refs,
-                                                attachments)
 
         except HttpError as error:
             # Pass along the error
             raise error
+
+        return self._paginate_messages(user_id, labels_ids, query,
+                                       include_spam_trash, attachments,
+                                       page_size, response)
+
+    def _paginate_messages(
+        self,
+        user_id: str,
+        labels_ids: List[str],
+        query: str,
+        include_spam_trash: bool,
+        attachments: str,
+        page_size: int,
+        first_response: dict
+    ) -> Iterator[Message]:
+        """
+        Lazily yields the messages matching a search, one API page at a time.
+
+        Args:
+            user_id: The user's email address.
+            labels_ids: Label IDs messages must match.
+            query: A Gmail query to match.
+            include_spam_trash: Whether to include messages from spam or trash.
+            attachments: Accepted values are 'ignore', 'reference', and
+                'download'.
+            page_size: The number of message references fetched per API page.
+            first_response: The already-executed response for the first page.
+
+        Yields:
+            The Message objects, downloaded one page at a time.
+
+        Raises:
+            googleapiclient.errors.HttpError: There was an error executing the
+                HTTP request. An error permanently exhausts the iterator.
+
+        """
+
+        response = first_response
+        while True:
+            # The final page may contain a page token but no 'messages' key.
+            message_refs = response.get('messages', [])
+            yield from self._get_messages_from_refs(user_id, message_refs,
+                                                    attachments)
+
+            page_token = response.get('nextPageToken')
+            if not page_token:
+                return
+
+            # Go through the `service` property each page so the token is
+            # refreshed even if the consumer pauses between pages.
+            response = self.service.users().messages().list(
+                userId=user_id,
+                q=query,
+                labelIds=labels_ids,
+                includeSpamTrash=include_spam_trash,
+                maxResults=page_size,
+                pageToken=page_token
+            ).execute()
 
     def list_labels(self, user_id: str = 'me') -> List[Label]:
         """
@@ -661,7 +814,8 @@ class Gmail(object):
         parallel: bool = True
     ) -> List[Message]:
         """
-        Retrieves the actual messages from a list of references.
+        Retrieves the actual messages from a list of references. Called by
+        get_messages() once per page of message references.
 
         Args:
             user_id: The account the messages belong to.
@@ -700,20 +854,27 @@ class Gmail(object):
         )
         batch_size = math.ceil(len(message_refs) / num_threads)
         message_lists = [None] * num_threads
+        errors = [None] * num_threads
 
         def thread_download_batch(thread_num):
-            gmail = Gmail(_creds=self.creds)
+            # Capture exceptions so they propagate to the caller instead of
+            # dying with the thread and leaving a None slot in message_lists.
+            try:
+                gmail = Gmail(_creds=self.creds)
 
-            start = thread_num * batch_size
-            end = min(len(message_refs), (thread_num + 1) * batch_size)
-            message_lists[thread_num] = [
-                gmail._build_message_from_ref(
-                    user_id, message_refs[i], attachments
-                )
-                for i in range(start, end)
-            ]
+                start = thread_num * batch_size
+                end = min(len(message_refs), (thread_num + 1) * batch_size)
+                message_lists[thread_num] = [
+                    gmail._build_message_from_ref(
+                        user_id, message_refs[i], attachments
+                    )
+                    for i in range(start, end)
+                ]
 
-            gmail.service.close()
+                gmail.service.close()
+
+            except BaseException as error:
+                errors[thread_num] = error
 
         threads = [
             threading.Thread(target=thread_download_batch, args=(i,))
@@ -725,6 +886,10 @@ class Gmail(object):
 
         for t in threads:
             t.join()
+
+        for error in errors:
+            if error is not None:
+                raise error
 
         return sum(message_lists, [])
 

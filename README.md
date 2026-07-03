@@ -15,6 +15,11 @@ Currently Supported Behavior:
 - Modifying message labels (includes marking as read/unread, important/not 
   important, starred/unstarred, trash/untrash, inbox/archive)
 
+> **⚠️ Breaking change in 5.0:** `get_messages()` and all other message
+> retrieval methods now return a lazy, single-pass iterator instead of a list.
+> Wrap the result in `list(...)` to restore the old behavior. See
+> [Migrating from 4.x](#migrating-from-4x).
+
 ## Table of Contents
 
 - [Getting Started](#getting-started)
@@ -28,6 +33,7 @@ Currently Supported Behavior:
     - [Downloading attachments](#downloading-attachments)
     - [Retrieving messages with queries](#retrieving-messages-advanced-with-queries)
     - [Retrieving messages with more advanced queries](#retrieving-messages-more-advanced-with-more-queries)
+- [Migrating from 4.x](#migrating-from-4x)
 - [Feedback](#feedback)
 
 ## Getting Started
@@ -127,6 +133,11 @@ It couldn't be easier!
 
 ### Retrieving messages:
 
+Retrieval methods return a lazy iterator: messages are downloaded one page at
+a time (100 per page by default, tunable with `page_size`) as you loop over
+it. An iterator can only be consumed once — wrap it in `list(...)` if you need
+everything in memory at once.
+
 ```python
 from simplegmail import Gmail
 
@@ -158,7 +169,8 @@ from simplegmail import Gmail
 
 gmail = Gmail()
 
-messages = gmail.get_unread_inbox()
+# list() fetches everything eagerly, restoring pre-5.0 behavior
+messages = list(gmail.get_unread_inbox())
 
 message_to_read = messages[0]
 message_to_read.mark_as_read()
@@ -189,10 +201,10 @@ labels = gmail.list_labels()
 # To find a label by the name that you know (just an example):
 finance_label = list(filter(lambda x: x.name == 'Finance', labels))[0]
 
-messages = gmail.get_unread_inbox()
+# Lazily fetch just the newest unread message (only one message is downloaded)
+message = next(gmail.get_unread_inbox(page_size=1))
 
 # We can add/remove a label
-message = messages[0]
 message.add_label(finance_label) 
 
 # We can "move" a message from one label to another
@@ -208,9 +220,8 @@ from simplegmail import Gmail
 
 gmail = Gmail()
 
-messages = gmail.get_unread_inbox()
+message = next(gmail.get_unread_inbox(page_size=1))
 
-message = messages[0]
 if message.attachments:
     for attm in message.attachments:
         print('File: ' + attm.filename)
@@ -283,6 +294,58 @@ messages = gmail.get_messages(query=construct_query(query_params_1, query_params
 ```
 
 For more on what you can do with queries, read the docstring for `construct_query()` in `query.py`.
+
+## Migrating from 4.x
+
+As of 5.0, `get_messages()` and every other message retrieval method
+(`get_unread_inbox()`, `get_starred_messages()`, etc.) return a lazy
+`Iterator[Message]` instead of a `List[Message]`. Messages are fetched from
+the Gmail API one page at a time, as you consume the iterator — so getting the
+first message of a large mailbox is fast, and memory use stays bounded.
+
+What to watch out for:
+
+- **Indexing, slicing, and `len()` no longer work.** Wrap the result in
+  `list(...)` to restore the old behavior exactly:
+
+  ```python
+  messages = list(gmail.get_messages())
+  ```
+
+- **The iterator is single-pass.** Iterating a second time yields nothing.
+  Store the result of `list(...)` if you need multiple passes.
+
+- **Truthiness checks silently break.** An iterator is always truthy, even
+  when there are no matching messages. Instead of `if not messages:`, use:
+
+  ```python
+  message = next(gmail.get_messages(query=...), None)
+  if message is None:
+      print("No matches!")
+  ```
+
+- **Errors can now occur while iterating.** The initial call still raises
+  `HttpError` immediately if listing the first page fails (bad credentials,
+  an invalid label), but errors while downloading messages — including those
+  on the first page — and errors listing later pages are raised from the loop
+  itself. Wrap the `for` loop (not just the call) in `try/except` if you
+  handle these. A failed iterator cannot be resumed.
+
+- **`page_size` controls fetch granularity** (1–500, default 100). Use a
+  small value when you only want the first few messages, e.g.
+  `next(gmail.get_unread_inbox(page_size=1))`, or combine with
+  `itertools.islice` for the first N:
+
+  ```python
+  from itertools import islice
+  newest_ten = list(islice(gmail.get_messages(page_size=10), 10))
+  ```
+
+- **Invalid `attachments` values now raise `ValueError`.** Previously a typo
+  like `attachments='referance'` silently behaved like `'download'`.
+
+- **`get_unread_inbox()` now honors its `attachments` argument**, which was
+  previously ignored due to a bug.
 
 ## Feedback
 
