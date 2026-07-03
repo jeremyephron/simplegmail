@@ -35,6 +35,7 @@ Currently Supported Behavior:
     - [Retrieving messages with more advanced queries](#retrieving-messages-more-advanced-with-more-queries)
 - [Migrating from 4.x](#migrating-from-4x)
 - [Feedback](#feedback)
+- [Release Notes](#release-notes)
 
 ## Getting Started
 
@@ -351,3 +352,26 @@ What to watch out for:
 
 If there is functionality you'd like to see added, or any bugs in this project,
 please let me know by posting an issue or submitting a pull request!
+
+## Release Notes
+
+### 5.0.0
+
+`get_messages()` and the other message retrieval methods previously fetched
+every page of matching message references and downloaded every message before
+returning. On large mailboxes this meant a single call could take a very long
+time and had to hold every `Message` in memory at once, which could cause
+out-of-memory errors. Downloading the entire mailbox in one burst could also
+exceed the Gmail API's per-user rate limits, failing the whole call with an
+error like:
+
+```
+googleapiclient.errors.HttpError: <HttpError 403 when requesting https://gmail.googleapis.com/gmail/v1/users/me/messages/1822775953ea0028?alt=json returned "Quota exceeded for quota metric 'Queries' and limit 'Queries per minute per user' of service 'gmail.googleapis.com' for consumer 'project_number:5513285XXXX'.". Details: "[{'message': "Quota exceeded for quota metric 'Queries' and limit 'Queries per minute per user' of service 'gmail.googleapis.com' for consumer 'project_number:5513285XXXX'.", 'domain': 'usageLimits', 'reason': 'rateLimitExceeded'}]">
+```
+
+These methods now return a lazy iterator that fetches messages one page at a
+time, on demand (see [Migrating from 4.x](#migrating-from-4x)): the first
+messages are available almost immediately, memory use is bounded to a single
+page, requests are spread out over the lifetime of the iteration instead of
+issued all at once, and the new `page_size` argument (1-500, default 100)
+controls how many messages are fetched per page.
