@@ -157,7 +157,8 @@ for message in messages:
     print("To: " + message.recipient)
     print("From: " + message.sender)
     print("Subject: " + message.subject)
-    print("Date: " + message.date)
+    print("Date: " + message.headerDate)  # from the message's Date header
+    # message.internalDate is Gmail's received timestamp (epoch milliseconds)
     print("Preview: " + message.snippet)
     
     print("Message Body: " + message.plain)  # or message.html
@@ -348,6 +349,11 @@ What to watch out for:
 - **`get_unread_inbox()` now honors its `attachments` argument**, which was
   previously ignored due to a bug.
 
+- **`message.date` is now `message.headerDate`.** This is a breaking rename:
+  reading `message.date` raises `AttributeError`. The value is unchanged (the
+  parsed `Date` header). A new `message.internalDate` attribute also exposes
+  Gmail's internal received timestamp in epoch milliseconds.
+
 ## Feedback
 
 If there is functionality you'd like to see added, or any bugs in this project,
@@ -375,3 +381,14 @@ messages are available almost immediately, memory use is bounded to a single
 page, requests are spread out over the lifetime of the iteration instead of
 issued all at once, and the new `page_size` argument (1-500, default 100)
 controls how many messages are fetched per page.
+
+Other changes:
+
+- **BREAKING: `Message.date` has been renamed to `Message.headerDate`.** Any
+  code reading `message.date` will now raise `AttributeError` and must be
+  updated to `message.headerDate`. The value itself is unchanged: the date
+  parsed from the message's `Date` header, localized to your timezone.
+- **New: `Message.internalDate`** exposes Gmail's internal received timestamp
+  in milliseconds since the epoch as an `int` (`None` if the API omits it).
+  Unlike `headerDate`, which comes from a sender-controlled header, this is
+  Gmail's own metadata — prefer it for sorting or comparing messages.

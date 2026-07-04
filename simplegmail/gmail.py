@@ -943,8 +943,12 @@ class Gmail(object):
             payload = message['payload']
             headers = payload['headers']
 
+            internal_date = None
+            if 'internalDate' in message:
+                internal_date = int(message['internalDate'])
+
             # Get header fields (date, from, to, subject)
-            date = ''
+            header_date = ''
             sender = ''
             recipient = ''
             subject = ''
@@ -954,9 +958,11 @@ class Gmail(object):
             for hdr in headers:
                 if hdr['name'].lower() == 'date':
                     try:
-                        date = str(parser.parse(hdr['value']).astimezone())
+                        header_date = str(
+                            parser.parse(hdr['value']).astimezone()
+                        )
                     except Exception:
-                        date = hdr['value']
+                        header_date = hdr['value']
                 elif hdr['name'].lower() == 'from':
                     sender = hdr['value']
                 elif hdr['name'].lower() == 'to':
@@ -1003,7 +1009,8 @@ class Gmail(object):
                 recipient,
                 sender,
                 subject,
-                date,
+                header_date,
+                internal_date,
                 snippet,
                 plain_msg,
                 html_msg,

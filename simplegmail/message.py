@@ -30,7 +30,9 @@ class Message(object):
         recipient: who the message was addressed to.
         sender: who the message was sent from.
         subject: the subject line of the message.
-        date: the date the message was sent.
+        headerDate: the date the message was sent, from the Date header.
+        internalDate: Gmail's internal received timestamp, in milliseconds
+            since the epoch. None if not provided by the API.
         snippet: the snippet line for the message.
         plain: the plaintext contents of the message. Default None.
         html: the HTML contents of the message. Default None.
@@ -47,7 +49,9 @@ class Message(object):
         recipient (str): who the message was addressed to.
         sender (str): who the message was sent from.
         subject (str): the subject line of the message.
-        date (str): the date the message was sent.
+        headerDate (str): the date the message was sent, from the Date header.
+        internalDate (Optional[int]): Gmail's internal received timestamp, in
+            milliseconds since the epoch.
         snippet (str): the snippet line for the message.
         plain (str): the plaintext contents of the message.
         html (str): the HTML contents of the message.
@@ -69,7 +73,8 @@ class Message(object):
         recipient: str,
         sender: str,
         subject: str,
-        date: str,
+        headerDate: str,
+        internalDate: Optional[int],
         snippet,
         plain: Optional[str] = None,
         html: Optional[str] = None,
@@ -87,7 +92,8 @@ class Message(object):
         self.recipient = recipient
         self.sender = sender
         self.subject = subject
-        self.date = date
+        self.headerDate = headerDate
+        self.internalDate = internalDate
         self.snippet = snippet
         self.plain = plain
         self.html = html
