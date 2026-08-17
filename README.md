@@ -155,6 +155,10 @@ messages = gmail.get_unread_inbox()
 # Starred messages
 messages = gmail.get_starred_messages()
 
+# Message headers without bodies or attachments
+messages = gmail.get_messages(metadata_only=True)
+print(messages[0].size_estimate)
+
 # ...and many more easy to use functions can be found in gmail.py!
 
 # Print them out!

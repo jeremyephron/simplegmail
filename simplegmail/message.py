@@ -40,6 +40,7 @@ class Message(object):
         headers: a dict of header values. Default {}
         cc: who the message was cc'd on the message.
         bcc: who the message was bcc'd on the message.
+        size_estimate: the estimated message size in bytes. Default None.
 
     Attributes:
         _service (googleapiclient.discovery.Resource): the Gmail service object.
@@ -57,6 +58,7 @@ class Message(object):
         headers (dict): a dict of header values.
         cc (List[str]): who the message was cc'd on the message.
         bcc (List[str]): who the message was bcc'd on the message.
+        size_estimate (int): the estimated message size in bytes.
 
     """
 
@@ -78,7 +80,8 @@ class Message(object):
         attachments: Optional[List[Attachment]] = None,
         headers: Optional[dict] = None,
         cc: Optional[List[str]] = None,
-        bcc: Optional[List[str]] = None
+        bcc: Optional[List[str]] = None,
+        size_estimate: Optional[int] = None
     ) -> None:
         self._service = service
         self.creds = creds
@@ -97,6 +100,7 @@ class Message(object):
         self.headers = headers or {}
         self.cc = cc or []
         self.bcc = bcc or []
+        self.size_estimate = size_estimate
 
     @property
     def service(self) -> 'googleapiclient.discovery.Resource':

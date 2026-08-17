@@ -257,6 +257,82 @@ def test_create_draft_uses_message_builder_and_returns_api_resource():
     assert result is draft
 
 
+def test_get_messages_passes_metadata_option_to_message_retrieval():
+    gmail = build_gmail()
+    gmail.creds.expired = False
+    gmail._service = MagicMock()
+    refs = [{'id': 'message-id'}]
+    messages = gmail._service.users.return_value.messages.return_value
+    messages.list.return_value.execute.return_value = {'messages': refs}
+    gmail._get_messages_from_refs = MagicMock(return_value=[])
+
+    gmail.get_messages(metadata_only=True)
+
+    gmail._get_messages_from_refs.assert_called_once_with(
+        'me', refs, 'reference', metadata_only=True
+    )
+
+
+def test_builds_metadata_message_without_parsing_body():
+    gmail = build_gmail()
+    gmail.creds.expired = False
+    gmail._service = MagicMock()
+    messages = gmail._service.users.return_value.messages.return_value
+    messages.get.return_value.execute.return_value = {
+        'id': 'message-id',
+        'threadId': 'thread-id',
+        'sizeEstimate': 1234,
+        'payload': {
+            'headers': [
+                {'name': 'From', 'value': 'sender@example.com'},
+                {'name': 'To', 'value': 'recipient@example.com'},
+                {'name': 'Subject', 'value': 'Subject'},
+                {'name': 'Date', 'value': 'Date'},
+            ],
+        },
+    }
+
+    message = gmail._build_message_from_ref(
+        'me', {'id': 'message-id'}, metadata_only=True
+    )
+
+    messages.get.assert_called_once_with(
+        userId='me', id='message-id', format='metadata'
+    )
+    assert message.sender == 'sender@example.com'
+    assert message.recipient == 'recipient@example.com'
+    assert message.subject == 'Subject'
+    assert message.date == 'Date'
+    assert message.size_estimate == 1234
+    assert message.plain is None
+    assert message.html is None
+    assert message.attachments == []
+
+
+def test_full_message_retrieval_remains_the_default():
+    gmail = build_gmail()
+    gmail.creds.expired = False
+    gmail._service = MagicMock()
+    messages = gmail._service.users.return_value.messages.return_value
+    messages.get.return_value.execute.return_value = {
+        'id': 'message-id',
+        'threadId': 'thread-id',
+        'snippet': 'Snippet',
+        'payload': {
+            'headers': [],
+            'mimeType': 'text/plain',
+            'body': {
+                'data': base64.urlsafe_b64encode(b'Body').decode(),
+            },
+        },
+    }
+
+    message = gmail._build_message_from_ref('me', {'id': 'message-id'})
+
+    messages.get.assert_called_once_with(userId='me', id='message-id')
+    assert message.plain == 'Body'
+
+
 def test_html_payload_handles_deeply_nested_content():
     nested = '<div>' * 1000 + 'message' + '</div>' * 1000
     payload = {
@@ -280,7 +356,8 @@ def test_parallel_retrieval_preserves_order_and_closes_services():
     message_refs = [{'id': str(i)} for i in range(21)]
     workers = []
 
-    def build_message(user_id, message_ref, attachments):
+    def build_message(user_id, message_ref, attachments, metadata_only=False):
+        assert metadata_only is True
         return message_ref['id']
 
     with patch(
@@ -288,7 +365,11 @@ def test_parallel_retrieval_preserves_order_and_closes_services():
         side_effect=lambda **_: build_worker(workers, build_message),
     ) as gmail_class:
         messages = Gmail._get_messages_from_refs(
-            gmail, 'me', message_refs, attachments='ignore'
+            gmail,
+            'me',
+            message_refs,
+            attachments='ignore',
+            metadata_only=True,
         )
 
     assert messages == [ref['id'] for ref in message_refs]
@@ -302,7 +383,7 @@ def test_parallel_retrieval_propagates_worker_errors_and_closes_services():
     workers = []
     error = RuntimeError('download failed')
 
-    def build_message(user_id, message_ref, attachments):
+    def build_message(user_id, message_ref, attachments, metadata_only=False):
         if message_ref['id'] == '6':
             raise error
         return message_ref['id']
