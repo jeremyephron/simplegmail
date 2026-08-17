@@ -59,8 +59,14 @@ file if you choose to name it otherwise.)
 
 The first time you create a new instance of the `Gmail` class, a browser window 
 will open, and you'll be asked to give permissions to the application. This 
-will save an access token in a file named "gmail_token.json", and only needs to
-occur once.
+will save an access token in a file named "gmail_token.json".
+
+Google expires authorizations and refresh tokens after seven days while an
+external OAuth project's publishing status is **Testing**. For long-running
+use, change the OAuth consent screen's publishing status to **Production**,
+delete `gmail_token.json`, and authorize again. See Google's
+[OAuth audience documentation](https://support.google.com/cloud/answer/15549945)
+for publishing and verification requirements.
 
 Existing `oauth2client` token files containing a refresh token are reused and
 rewritten in the current `google-auth` format after they are refreshed.
