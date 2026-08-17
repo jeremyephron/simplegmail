@@ -528,6 +528,54 @@ def test_create_message_without_attachments_remains_multipart_alternative():
     ]
 
 
+@pytest.mark.parametrize(
+    ('method_name', 'required_labels', 'include_spam_trash'),
+    [
+        ('get_unread_inbox', [label.INBOX, label.UNREAD], False),
+        ('get_starred_messages', [label.STARRED], False),
+        ('get_important_messages', [label.IMPORTANT], False),
+        ('get_unread_messages', [label.UNREAD], False),
+        ('get_drafts', [label.DRAFT], False),
+        ('get_sent_messages', [label.SENT], False),
+        ('get_trash_messages', [label.TRASH], True),
+        ('get_spam_messages', [label.SPAM], True),
+    ],
+)
+def test_filtered_getters_forward_options_without_mutating_labels(
+    method_name, required_labels, include_spam_trash
+):
+    gmail = build_gmail()
+    gmail.get_messages = MagicMock(return_value=[])
+    labels = [label.PERSONAL]
+
+    result = getattr(gmail, method_name)(
+        labels=labels,
+        query='query',
+        attachments='ignore',
+    )
+
+    assert result == []
+    assert labels == [label.PERSONAL]
+    gmail.get_messages.assert_called_once_with(
+        'me',
+        [label.PERSONAL] + required_labels,
+        'query',
+        'ignore',
+        include_spam_trash,
+    )
+
+
+@pytest.mark.parametrize('attachments', [None, '', 'references', True])
+def test_get_messages_rejects_invalid_attachment_mode(attachments):
+    gmail = build_gmail()
+    gmail._service = MagicMock()
+
+    with pytest.raises(ValueError, match='attachments must be'):
+        gmail.get_messages(attachments=attachments)
+
+    gmail._service.users.assert_not_called()
+
+
 def test_get_messages_passes_metadata_option_to_message_retrieval():
     gmail = build_gmail()
     gmail.creds.expired = False

@@ -103,7 +103,7 @@ significantly safer and avoids clashing with Google's many security measures.
 
 ## Installation
 
-Install using `pip` (Python3).
+Python 3.10 or newer is required. Install using `pip`:
 
 ```bash
 pip3 install simplegmail
