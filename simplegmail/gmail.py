@@ -574,7 +574,8 @@ class Gmail(object):
         labels: Optional[List[Label]] = None,
         query: str = '',
         attachments: str = 'reference',
-        include_spam_trash: bool = False
+        include_spam_trash: bool = False,
+        metadata_only: bool = False
     ) -> List[Message]:
         """
         Gets messages from your account.
@@ -590,6 +591,8 @@ class Gmail(object):
                 downloads the attachment data to store locally. Default
                 'reference'.
             include_spam_trash: whether to include messages from spam or trash.
+            metadata_only: whether to retrieve headers without message bodies
+                or attachments. Default False.
 
         Returns:
             A list of message objects.
@@ -631,8 +634,12 @@ class Gmail(object):
 
                 message_refs.extend(response['messages'])
 
-            return self._get_messages_from_refs(user_id, message_refs,
-                                                attachments)
+            return self._get_messages_from_refs(
+                user_id,
+                message_refs,
+                attachments,
+                metadata_only=metadata_only
+            )
 
         except HttpError as error:
             # Pass along the error
@@ -745,7 +752,8 @@ class Gmail(object):
         user_id: str,
         message_refs: List[dict],
         attachments: str = 'reference',
-        parallel: bool = True
+        parallel: bool = True,
+        metadata_only: bool = False
     ) -> List[Message]:
         """
         Retrieves the actual messages from a list of references.
@@ -761,6 +769,8 @@ class Gmail(object):
             parallel: Whether to retrieve messages in parallel. Default true.
                 Currently parallelization is always on, since there is no
                 reason to do otherwise.
+            metadata_only: Whether to retrieve headers without message bodies
+                or attachments. Default False.
 
 
         Returns:
@@ -776,7 +786,8 @@ class Gmail(object):
             return []
 
         if not parallel:
-            return [self._build_message_from_ref(user_id, ref, attachments)
+            return [self._build_message_from_ref(
+                        user_id, ref, attachments, metadata_only=metadata_only)
                     for ref in message_refs]
 
         max_num_threads = 12  # empirically chosen, prevents throttling
@@ -794,7 +805,10 @@ class Gmail(object):
                 end = min(len(message_refs), (thread_num + 1) * batch_size)
                 return [
                     gmail._build_message_from_ref(
-                        user_id, message_refs[i], attachments
+                        user_id,
+                        message_refs[i],
+                        attachments,
+                        metadata_only=metadata_only
                     )
                     for i in range(start, end)
                 ]
@@ -808,7 +822,8 @@ class Gmail(object):
         self,
         user_id: str,
         message_ref: dict,
-        attachments: str = 'reference'
+        attachments: str = 'reference',
+        metadata_only: bool = False
     ) -> Message:
         """
         Creates a Message object from a reference.
@@ -822,6 +837,8 @@ class Gmail(object):
                 information but does not download the data, and 'download' which
                 downloads the attachment data to store locally. Default
                 'reference'.
+            metadata_only: Whether to retrieve headers without message bodies
+                or attachments. Default False.
 
         Returns:
             The Message object.
@@ -834,8 +851,11 @@ class Gmail(object):
 
         try:
             # Get message JSON
+            params = {'userId': user_id, 'id': message_ref['id']}
+            if metadata_only:
+                params['format'] = 'metadata'
             message = self.service.users().messages().get(
-                userId=user_id, id=message_ref['id']
+                **params
             ).execute()
 
         except HttpError as error:
@@ -849,7 +869,7 @@ class Gmail(object):
             if 'labelIds' in message:
                 user_labels = {x.id: x for x in self.list_labels(user_id=user_id)}
                 label_ids = [user_labels[x] for x in message['labelIds']]
-            snippet = html.unescape(message['snippet'])
+            snippet = html.unescape(message.get('snippet', ''))
 
             payload = message['payload']
             headers = payload['headers']
@@ -881,7 +901,7 @@ class Gmail(object):
 
                 msg_hdrs[hdr['name']] = hdr['value']
 
-            parts = self._evaluate_message_payload(
+            parts = [] if metadata_only else self._evaluate_message_payload(
                 payload, user_id, message_ref['id'], attachments
             )
 
@@ -922,7 +942,8 @@ class Gmail(object):
                 attms,
                 msg_hdrs,
                 cc,
-                bcc
+                bcc,
+                size_estimate=message.get('sizeEstimate')
             )
 
     def _evaluate_message_payload(
