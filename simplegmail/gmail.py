@@ -320,11 +320,10 @@ class Gmail(object):
 
         """
 
-        if labels is None:
-            labels = []
-
-        labels.append(label.INBOX)
-        return self.get_unread_messages(user_id, labels, query)
+        labels = list(labels or []) + [label.INBOX]
+        return self.get_unread_messages(
+            user_id, labels, query, attachments
+        )
 
     def get_starred_messages(
         self,
@@ -358,10 +357,7 @@ class Gmail(object):
 
         """
 
-        if labels is None:
-            labels = []
-
-        labels.append(label.STARRED)
+        labels = list(labels or []) + [label.STARRED]
         return self.get_messages(user_id, labels, query, attachments,
                                  include_spam_trash)
 
@@ -397,10 +393,7 @@ class Gmail(object):
 
         """
 
-        if labels is None:
-            labels = []
-
-        labels.append(label.IMPORTANT)
+        labels = list(labels or []) + [label.IMPORTANT]
         return self.get_messages(user_id, labels, query, attachments,
                                  include_spam_trash)
 
@@ -436,10 +429,7 @@ class Gmail(object):
 
         """
 
-        if labels is None:
-            labels = []
-
-        labels.append(label.UNREAD)
+        labels = list(labels or []) + [label.UNREAD]
         return self.get_messages(user_id, labels, query, attachments,
                                  include_spam_trash)
 
@@ -475,10 +465,7 @@ class Gmail(object):
 
         """
 
-        if labels is None:
-            labels = []
-
-        labels.append(label.DRAFT)
+        labels = list(labels or []) + [label.DRAFT]
         return self.get_messages(user_id, labels, query, attachments,
                                  include_spam_trash)
 
@@ -514,10 +501,7 @@ class Gmail(object):
 
         """
 
-        if labels is None:
-            labels = []
-
-        labels.append(label.SENT)
+        labels = list(labels or []) + [label.SENT]
         return self.get_messages(user_id, labels, query, attachments,
                                  include_spam_trash)
 
@@ -552,10 +536,7 @@ class Gmail(object):
 
         """
 
-        if labels is None:
-            labels = []
-
-        labels.append(label.TRASH)
+        labels = list(labels or []) + [label.TRASH]
         return self.get_messages(user_id, labels, query, attachments, True)
 
     def get_spam_messages(
@@ -589,10 +570,7 @@ class Gmail(object):
         """
 
 
-        if labels is None:
-            labels = []
-
-        labels.append(label.SPAM)
+        labels = list(labels or []) + [label.SPAM]
         return self.get_messages(user_id, labels, query, attachments, True)
 
     def get_messages(
@@ -628,7 +606,8 @@ class Gmail(object):
             A list of message objects.
 
         Raises:
-            ValueError: `max_results` is not a positive integer.
+            ValueError: `attachments` is invalid or `max_results` is not a
+                positive integer.
             googleapiclient.errors.HttpError: There was an error executing the
                 HTTP request.
 
@@ -636,6 +615,10 @@ class Gmail(object):
 
         if labels is None:
             labels = []
+        if attachments not in ('ignore', 'reference', 'download'):
+            raise ValueError(
+                "attachments must be 'ignore', 'reference', or 'download'"
+            )
         if max_results is not None and (
             isinstance(max_results, bool)
             or not isinstance(max_results, int)
