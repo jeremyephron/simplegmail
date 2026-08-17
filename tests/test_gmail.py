@@ -10,6 +10,7 @@ from googleapiclient.errors import HttpError
 
 from simplegmail import label
 from simplegmail.gmail import Gmail
+from simplegmail.message import Message
 
 
 def build_gmail():
@@ -37,6 +38,22 @@ def build_credentials(valid=True, expired=False, refresh_token='refresh'):
 def parse_message_resource(message_resource):
     return BytesParser(policy=policy.default).parsebytes(
         base64.urlsafe_b64decode(message_resource['raw'])
+    )
+
+
+def build_reply_to(headers, subject='Original subject', thread_id='thread-id'):
+    return Message(
+        service=MagicMock(),
+        creds=MagicMock(),
+        user_id='me',
+        msg_id='message-id',
+        thread_id=thread_id,
+        recipient='recipient@example.com',
+        sender='sender@example.com',
+        subject=subject,
+        date='date',
+        snippet='snippet',
+        headers=headers,
     )
 
 
@@ -259,6 +276,97 @@ def test_send_message_uses_existing_builder_and_shared_sender():
     assert result is sent_message
 
 
+@pytest.mark.parametrize(
+    ('headers', 'references'),
+    [
+        (
+            {'Message-ID': '<parent@example.com>'},
+            '<parent@example.com>',
+        ),
+        (
+            {
+                'Message-ID': '<parent@example.com>',
+                'In-Reply-To': '<grandparent@example.com>',
+            },
+            '<grandparent@example.com> <parent@example.com>',
+        ),
+        (
+            {
+                'message-id': '<parent@example.com>',
+                'references': '<first@example.com> <second@example.com>',
+                'in-reply-to': '<ignored@example.com>',
+            },
+            '<first@example.com> <second@example.com> <parent@example.com>',
+        ),
+        (
+            {
+                'Message-ID': '<parent@example.com>',
+                'In-Reply-To': '<first@example.com> <second@example.com>',
+            },
+            '<parent@example.com>',
+        ),
+    ],
+)
+def test_send_message_builds_threaded_reply(headers, references):
+    gmail = build_gmail()
+    sent_message = object()
+    gmail._send_message = MagicMock(return_value=sent_message)
+
+    result = gmail.send_message(
+        sender='me@example.com',
+        to='sender@example.com',
+        msg_plain='Reply body',
+        reply_to=build_reply_to(headers),
+    )
+
+    message_resource = gmail._send_message.call_args.args[0]
+    message = parse_message_resource(message_resource)
+    gmail._send_message.assert_called_once_with(message_resource, 'me')
+    assert message_resource['threadId'] == 'thread-id'
+    assert message['Subject'] == 'Original subject'
+    assert message['In-Reply-To'] == '<parent@example.com>'
+    assert message['References'] == references
+    assert message.get_body().get_content().strip() == 'Reply body'
+    assert result is sent_message
+
+
+@pytest.mark.parametrize(
+    ('reply_to', 'subject', 'error'),
+    [
+        (
+            build_reply_to(
+                {'Message-ID': '<parent@example.com>'}, thread_id=''
+            ),
+            '',
+            'reply_to must have a thread ID',
+        ),
+        (
+            build_reply_to({}),
+            '',
+            'reply_to must have a Message-ID header',
+        ),
+        (
+            build_reply_to({'Message-ID': '<parent@example.com>'}),
+            'Different subject',
+            'reply subject must match',
+        ),
+    ],
+)
+def test_send_message_rejects_invalid_reply(reply_to, subject, error):
+    gmail = build_gmail()
+    gmail._send_message = MagicMock()
+
+    with pytest.raises(ValueError, match=error):
+        gmail.send_message(
+            sender='me@example.com',
+            to='sender@example.com',
+            subject=subject,
+            reply_to=reply_to,
+        )
+
+    gmail._send_message.assert_not_called()
+
+
 def test_send_email_message_encodes_and_sends_mime_message():
     gmail = build_gmail()
     gmail.creds.expired = False
@@ -404,13 +512,15 @@ def test_create_message_with_only_an_attachment_has_no_empty_body(tmp_path):
 def test_create_message_without_attachments_remains_multipart_alternative():
     gmail = build_gmail()
 
-    message = parse_message_resource(gmail._create_message(
+    message_resource = gmail._create_message(
         sender='sender@example.com',
         to='recipient@example.com',
         msg_plain='Plain body',
         msg_html='<p>HTML body</p>',
-    ))
+    )
+    message = parse_message_resource(message_resource)
 
+    assert set(message_resource) == {'raw'}
     assert message.get_content_type() == 'multipart/alternative'
     assert [part.get_content_type() for part in message.get_payload()] == [
         'text/plain',
