@@ -149,7 +149,7 @@ for message in messages:
     print("Date: " + message.date)
     print("Preview: " + message.snippet)
     
-    print("Message Body: " + message.plain)  # or message.html
+    print("Message Body:", message.plain or message.html or "")
 ```
 
 ### Marking messages:
