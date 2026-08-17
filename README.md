@@ -244,10 +244,26 @@ if message.attachments:
         attm.save()  # downloads and saves each attachment under its stored
                      # filename. You can download without saving with `attm.download()`
 
-        # An existing directory can also be supplied.
-        attm.save(filepath='downloads', overwrite=True)
+        # Or save it to an existing directory.
+        # attm.save(filepath='downloads', overwrite=True)
 
 ```
+
+With the default `attachments='reference'` mode, attachment data is downloaded
+only when `download()` or `save()` is called, so you can filter attachments
+first. For example, to download only PDFs:
+
+```python
+from pathlib import Path
+
+for message in messages:
+    for attm in message.attachments:
+        if Path(attm.filename).suffix.lower() == '.pdf':
+            attm.save()
+```
+
+The `spec_attachment` query term filters messages that contain a matching
+attachment; it does not filter the attachments within each message.
 
 ### Retrieving messages (advanced, with queries!):
 
