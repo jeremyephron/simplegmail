@@ -169,7 +169,8 @@ class Gmail(object):
         bcc: Optional[List[str]] = None,
         attachments: Optional[List[str]] = None,
         signature: bool = False,
-        user_id: str = 'me'
+        user_id: str = 'me',
+        reply_to: Optional[Message] = None,
     ) -> Message:
         """
         Sends an email.
@@ -189,11 +190,15 @@ class Gmail(object):
                 message.
             user_id: The address of the sending account. 'me' for the
                 default address associated with the account.
+            reply_to: The message being replied to. When provided, the new
+                message is sent in the same Gmail thread.
 
         Returns:
             The Message object representing the sent message.
 
         Raises:
+            ValueError: The reply lacks the metadata required for threading,
+                or its subject does not match the original message.
             googleapiclient.errors.HttpError: There was an error executing the
                 HTTP request.
 
@@ -201,7 +206,8 @@ class Gmail(object):
 
         msg = self._create_message(
             sender, to, subject, msg_html, msg_plain, cc=cc, bcc=bcc,
-            attachments=attachments, signature=signature, user_id=user_id
+            attachments=attachments, signature=signature, user_id=user_id,
+            reply_to=reply_to,
         )
         return self._send_message(msg, user_id)
 
@@ -1099,7 +1105,8 @@ class Gmail(object):
         bcc: List[str] = None,
         attachments: List[str] = None,
         signature: bool = False,
-        user_id: str = 'me'
+        user_id: str = 'me',
+        reply_to: Optional[Message] = None,
     ) -> dict:
         """
         Creates the raw email message to be sent.
@@ -1117,6 +1124,7 @@ class Gmail(object):
             signature: Whether the account signature should be added to the
                 message. Will add the signature to your HTML message only, or a
                 create a HTML message if none exists.
+            reply_to: The message being replied to.
 
         Returns:
             The message dict.
@@ -1126,7 +1134,32 @@ class Gmail(object):
         msg = MIMEMultipart('mixed' if attachments else 'alternative')
         msg['To'] = to
         msg['From'] = sender
-        msg['Subject'] = subject
+
+        if reply_to is None:
+            msg['Subject'] = subject
+        else:
+            headers = {
+                name.lower(): value
+                for name, value in reply_to.headers.items()
+            }
+            message_id = headers.get('message-id')
+            if not reply_to.thread_id:
+                raise ValueError('reply_to must have a thread ID')
+            if not message_id:
+                raise ValueError('reply_to must have a Message-ID header')
+            if subject and subject != reply_to.subject:
+                raise ValueError('reply subject must match the original')
+            references = headers.get('references')
+            in_reply_to = headers.get('in-reply-to', '')
+            if not references and len(re.findall(
+                r'<[^<>]+@[^<>]+>', in_reply_to
+            )) == 1:
+                references = in_reply_to
+            msg['Subject'] = reply_to.subject
+            msg['In-Reply-To'] = message_id
+            msg['References'] = ' '.join(
+                value for value in (references, message_id) if value
+            )
 
         if cc:
             msg['Cc'] = ', '.join(cc)
@@ -1158,9 +1191,13 @@ class Gmail(object):
 
             self._ready_message_with_attachments(msg, attachments)
 
-        return {
+        message = {
             'raw': base64.urlsafe_b64encode(msg.as_string().encode()).decode()
         }
+        if reply_to is not None:
+            message['threadId'] = reply_to.thread_id
+
+        return message
 
     def _ready_message_with_attachments(
         self,

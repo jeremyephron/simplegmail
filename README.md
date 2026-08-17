@@ -167,6 +167,25 @@ message.set_content("Built with Python's standard email library.")
 sent_message = gmail.send_email_message(message)
 ```
 
+### Reply to a message in the same thread:
+
+```python
+from simplegmail import Gmail
+
+gmail = Gmail()
+original = gmail.get_messages(query='subject:"Original subject"')[0]
+
+reply = gmail.send_message(
+    sender='me@myemail.com',
+    to=original.sender,
+    msg_plain='Thanks for your message.',
+    reply_to=original,
+)
+```
+
+The original subject is reused automatically because Gmail requires matching
+subjects when adding a reply to an existing thread.
+
 ### Create a draft:
 
 ```python
