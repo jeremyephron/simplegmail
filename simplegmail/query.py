@@ -5,7 +5,16 @@ This module contains functions for constructing Gmail search queries.
 
 """
 
-from typing import List, Union
+_BOOLEAN_TERMS = {
+    'attachment', 'docs', 'drive', 'important', 'read', 'sheets', 'slides',
+    'snoozed', 'starred', 'unread',
+}
+_QUERY_TERMS = _BOOLEAN_TERMS | {
+    'after', 'bcc', 'before', 'category', 'cc', 'delivered_to',
+    'exact_phrase', 'has', 'id', 'in', 'labels', 'larger', 'list',
+    'near_words', 'newer_than', 'older_than', 'recipient', 'sender',
+    'smaller', 'spec_attachment', 'subject',
+}
 
 
 def construct_query(*query_dicts, **query_terms) -> str:
@@ -57,7 +66,7 @@ def construct_query(*query_dicts, **query_terms) -> str:
 
         subject (str): The subject of the message. E.g.: subject='Meeting'
 
-        labels (List[str]): Labels applied to the message (all must match).
+        labels (list[str]): Labels applied to the message (all must match).
             E.g.: labels=['Work', 'HR'] # Work AND HR
                   labels=[['Work', 'HR'], ['Home']] # (Work AND HR) OR Home
 
@@ -76,12 +85,12 @@ def construct_query(*query_dicts, **query_terms) -> str:
 
         bcc (str): Recipient in the bcc field. E.g.: bcc='jane@email.com'
 
-        before (Union[str, int]): The message was sent before a date or Unix
+        before (str | int): The message was sent before a date or Unix
             timestamp.
             E.g.: before='2004/04/27'
                   before=1083024000
 
-        after (Union[str, int]): The message was sent after a date or Unix
+        after (str | int): The message was sent after a date or Unix
             timestamp.
             E.g.: after='2004/04/27'
                   after=1083024000
@@ -158,7 +167,16 @@ def construct_query(*query_dicts, **query_terms) -> str:
     Returns:
         The query string.
 
+    Raises:
+        ValueError: Query styles are mixed; a term, value type, or relative
+            time unit is invalid; or a sequence value is empty.
+
     """
+
+    if query_dicts and query_terms:
+        raise ValueError(
+            'Pass either query dictionaries or keyword query terms, not both.'
+        )
 
     if query_dicts:
         return _or([construct_query(**query) for query in query_dicts])
@@ -166,11 +184,20 @@ def construct_query(*query_dicts, **query_terms) -> str:
     terms = []
     for key, val in query_terms.items():
         exclude = False
-        if key.startswith('exclude'):
+        if key.startswith('exclude_'):
             exclude = True
             key = key[len('exclude_'):]
 
-        query_fn = globals()[f"_{key}"]
+        if key not in _QUERY_TERMS:
+            raise ValueError(f'Unknown query term: {key}')
+        query_fn = globals()[f'_{key}']
+
+        if isinstance(val, (tuple, list)) and not val:
+            raise ValueError(f'Query term {key} cannot be empty.')
+        if key in _BOOLEAN_TERMS and not isinstance(val, bool):
+            raise ValueError(f'Query term {key} must be a boolean.')
+        if key not in _BOOLEAN_TERMS and isinstance(val, bool):
+            raise ValueError(f'Query term {key} cannot be a boolean.')
         conjunction = _and if isinstance(val, tuple) else _or
 
         if key in ['newer_than', 'older_than', 'near_words']:
@@ -199,7 +226,7 @@ def construct_query(*query_dicts, **query_terms) -> str:
     return _and(terms)
 
 
-def _and(queries: List[str]) -> str:
+def _and(queries: list[str]) -> str:
     """
     Returns a query term matching the "and" of all query terms.
 
@@ -211,13 +238,15 @@ def _and(queries: List[str]) -> str:
 
     """
 
+    if not queries:
+        return ''
     if len(queries) == 1:
         return queries[0]
 
     return f'({" ".join(queries)})'
 
 
-def _or(queries: List[str]) -> str:
+def _or(queries: list[str]) -> str:
     """
     Returns a query term matching the "or" of all query terms.
 
@@ -229,6 +258,8 @@ def _or(queries: List[str]) -> str:
 
     """
 
+    if not queries:
+        return ''
     if len(queries) == 1:
         return queries[0]
 
@@ -295,7 +326,7 @@ def _subject(subject: str) -> str:
     return f'subject:{subject}'
 
 
-def _labels(labels: Union[List[str], str]) -> str:
+def _labels(labels: list[str] | str) -> str:
     """
     Returns a query term matching a multiple labels.
 
@@ -423,7 +454,7 @@ def _bcc(recipient: str) -> str:
     return f'bcc:{recipient}'
 
 
-def _after(date: Union[str, int]) -> str:
+def _after(date: str | int) -> str:
     """
     Returns a query term matching messages sent after a given date.
 
@@ -438,7 +469,7 @@ def _after(date: Union[str, int]) -> str:
     return f'after:{date}'
 
 
-def _before(date: Union[str, int]) -> str:
+def _before(date: str | int) -> str:
     """
     Returns a query term matching messages sent before a given date.
 
@@ -466,7 +497,7 @@ def _older_than(number: int, unit: str) -> str:
 
     """
 
-    return f'older_than:{number}{unit[0]}'
+    return _time_period('older_than', number, unit)
 
 
 def _newer_than(number: int, unit: str) -> str:
@@ -482,7 +513,23 @@ def _newer_than(number: int, unit: str) -> str:
 
     """
 
-    return f'newer_than:{number}{unit[0]}'
+    return _time_period('newer_than', number, unit)
+
+
+def _time_period(operator: str, number: int, unit: str) -> str:
+    """Build a Gmail relative-time term using a supported unit."""
+
+    units = {
+        'd': 'd', 'day': 'd', 'days': 'd',
+        'm': 'm', 'month': 'm', 'months': 'm',
+        'y': 'y', 'year': 'y', 'years': 'y',
+    }
+    try:
+        suffix = units[unit.lower()]
+    except (AttributeError, KeyError) as error:
+        raise ValueError('unit must be day, month, or year') from error
+
+    return f'{operator}:{number}{suffix}'
 
 
 def _near_words(

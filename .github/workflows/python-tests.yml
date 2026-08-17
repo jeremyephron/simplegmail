@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
+      fail-fast: false
       matrix:
         python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
 
@@ -22,10 +23,30 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-          cache-dependency-path: setup.py
+          cache-dependency-path: |
+            pyproject.toml
+            setup.py
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install --editable '.[test]'
       - name: Run tests
         run: python -m pytest
+
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install build tools
+        run: python -m pip install --upgrade build twine
+      - name: Build and validate distribution
+        run: |
+          python -m build
+          python -m twine check dist/*

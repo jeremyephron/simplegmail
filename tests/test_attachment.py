@@ -52,12 +52,41 @@ def test_save_directory_respects_overwrite_option(tmp_path):
     saved_attachment = destination / 'attachment.txt'
     saved_attachment.write_bytes(b'existing data')
     attachment = build_attachment()
+    attachment.data = None
+    attachment.download = MagicMock()
 
     with pytest.raises(FileExistsError):
         attachment.save(filepath=str(destination))
 
     assert saved_attachment.read_bytes() == b'existing data'
+    attachment.download.assert_not_called()
 
+    attachment.download.side_effect = lambda: setattr(
+        attachment, 'data', b'attachment data'
+    )
     attachment.save(filepath=str(destination), overwrite=True)
 
     assert saved_attachment.read_bytes() == b'attachment data'
+
+
+def test_download_decodes_unpadded_base64url_once():
+    attachment = build_attachment(data=None)
+    get = attachment._service.users.return_value.messages.return_value \
+        .attachments.return_value.get
+    get.return_value.execute.return_value = {'data': '_w'}
+
+    attachment.download()
+    attachment.download()
+
+    assert attachment.data == b'\xff'
+    get.assert_called_once_with(
+        userId='me', messageId='message-id', id='attachment-id'
+    )
+
+
+def test_save_uses_stored_filename_by_default(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    build_attachment().save()
+
+    assert (tmp_path / 'attachment.txt').read_bytes() == b'attachment data'

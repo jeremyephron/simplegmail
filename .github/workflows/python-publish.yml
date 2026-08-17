@@ -1,11 +1,10 @@
-# This workflow will upload a Python Package using Twine when a release is created
-# For more information see: https://help.github.com/en/actions/language-and-framework-guides/using-python-with-github-actions#publishing-to-package-registries
+# Build, test, and publish the package after a GitHub release is published.
 
 name: Upload Python Package
 
 on:
   release:
-    types: [created]
+    types: [published]
 
 jobs:
   deploy:
@@ -27,10 +26,13 @@ jobs:
         python -m pip install --editable '.[test]' build twine
     - name: Run tests
       run: python -m pytest
-    - name: Build and publish
+    - name: Build distribution
+      run: python -m build
+    - name: Validate distribution
+      run: python -m twine check dist/*
+    - name: Publish distribution
       env:
         TWINE_USERNAME: '__token__'
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
       run: |
-        python -m build
         python -m twine upload dist/*

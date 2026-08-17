@@ -509,6 +509,29 @@ def test_create_message_with_only_an_attachment_has_no_empty_body(tmp_path):
     assert message.get_payload(0).get_content_disposition() == 'attachment'
 
 
+@pytest.mark.parametrize(
+    ('filename', 'data'),
+    [
+        ('binary.bin', b'\x00\xff\x10binary'),
+        ('non-utf8.txt', b'\xff\xfeplain text'),
+    ],
+)
+def test_create_message_preserves_attachment_bytes(tmp_path, filename, data):
+    attachment = tmp_path / filename
+    attachment.write_bytes(data)
+    gmail = build_gmail()
+
+    message = parse_message_resource(gmail._create_message(
+        sender='sender@example.com',
+        to='recipient@example.com',
+        attachments=[str(attachment)],
+    ))
+
+    saved_attachment = message.get_payload(0)
+    assert saved_attachment.get_filename() == filename
+    assert saved_attachment.get_payload(decode=True) == data
+
+
 def test_create_message_without_attachments_remains_multipart_alternative():
     gmail = build_gmail()
 
@@ -700,18 +723,44 @@ def test_full_message_retrieval_remains_the_default():
             },
         },
     }
-    gmail.list_labels = MagicMock()
-
-    message = gmail._build_message_from_ref(
-        'me',
-        {'id': 'message-id'},
-        user_labels={'INBOX': label.INBOX},
-    )
+    message = gmail._build_message_from_ref('me', {'id': 'message-id'})
 
     messages.get.assert_called_once_with(userId='me', id='message-id')
-    gmail.list_labels.assert_not_called()
     assert message.plain == 'Body'
-    assert message.label_ids == [label.INBOX]
+    assert message.label_ids == ['INBOX']
+
+
+def test_parses_quoted_cc_and_bcc_addresses():
+    gmail = build_gmail()
+    gmail.creds.expired = False
+    gmail._service = MagicMock()
+    gmail._service.users.return_value.messages.return_value.get.return_value \
+        .execute.return_value = {
+            'id': 'message-id',
+            'threadId': 'thread-id',
+            'payload': {
+                'headers': [
+                    {
+                        'name': 'Cc',
+                        'value': '"Doe, John" <john@example.com>, jane@example.com',
+                    },
+                    {
+                        'name': 'Bcc',
+                        'value': 'first@example.com,second@example.com',
+                    },
+                ],
+                'mimeType': 'text/plain',
+                'body': {'data': ''},
+            },
+        }
+
+    message = gmail._build_message_from_ref('me', {'id': 'message-id'})
+
+    assert message.cc == [
+        '"Doe, John" <john@example.com>',
+        'jane@example.com',
+    ]
+    assert message.bcc == ['first@example.com', 'second@example.com']
 
 
 def test_html_payload_handles_deeply_nested_content():
@@ -732,22 +781,100 @@ def test_html_payload_handles_deeply_nested_content():
     assert parts == [{'part_type': 'html', 'body': f'<body>{nested}</body>'}]
 
 
+def test_external_text_payload_is_downloaded_as_message_body():
+    gmail = build_gmail()
+    gmail._service = MagicMock()
+    attachments = gmail._service.users.return_value.messages.return_value \
+        .attachments.return_value
+    attachments.get.return_value.execute.return_value = {
+        'data': base64.urlsafe_b64encode('ol\xe1'.encode('iso-8859-1')).decode(),
+    }
+    payload = {
+        'mimeType': 'text/plain',
+        'filename': '',
+        'headers': [
+            {'name': 'Content-Type', 'value': 'text/plain; charset=iso-8859-1'},
+        ],
+        'body': {'attachmentId': 'body-id'},
+    }
+
+    parts = gmail._evaluate_message_payload(payload, 'me', 'message-id')
+
+    assert parts == [{'part_type': 'plain', 'body': 'ol\xe1'}]
+    attachments.get.assert_called_once_with(
+        userId='me', messageId='message-id', id='body-id'
+    )
+
+
+def test_message_body_decodes_unpadded_base64url():
+    payload = {
+        'mimeType': 'text/plain',
+        'body': {'data': '_w'},
+    }
+
+    parts = Gmail.__new__(Gmail)._evaluate_message_payload(
+        payload, 'me', 'message-id'
+    )
+
+    assert parts == [{'part_type': 'plain', 'body': '\ufffd'}]
+
+
+def test_inline_attachment_data_is_available_without_an_attachment_id():
+    payload = {
+        'mimeType': 'application/octet-stream',
+        'filename': 'data.bin',
+        'headers': [],
+        'body': {'data': '_w'},
+    }
+
+    parts = Gmail.__new__(Gmail)._evaluate_message_payload(
+        payload, 'me', 'message-id'
+    )
+
+    assert parts == [{
+        'part_type': 'attachment',
+        'filetype': 'application/octet-stream',
+        'filename': 'data.bin',
+        'attachment_id': None,
+        'data': b'\xff',
+    }]
+
+
+def test_inline_image_is_retained_as_an_attachment():
+    gmail = build_gmail()
+    gmail._service = MagicMock()
+    payload = {
+        'mimeType': 'image/png',
+        'filename': '',
+        'headers': [
+            {'name': 'Content-Disposition', 'value': 'inline'},
+        ],
+        'body': {'attachmentId': 'image-id'},
+    }
+
+    parts = gmail._evaluate_message_payload(payload, 'me', 'message-id')
+
+    assert parts == [{
+        'part_type': 'attachment',
+        'filetype': 'image/png',
+        'filename': 'unknown',
+        'attachment_id': 'image-id',
+        'data': None,
+    }]
+
+
 def test_parallel_retrieval_preserves_order_and_closes_services():
     gmail = build_gmail()
-    gmail.list_labels = MagicMock(return_value=[label.INBOX])
     message_refs = [{'id': str(i)} for i in range(21)]
     workers = []
-    label_maps = []
 
     def build_message(
         user_id,
         message_ref,
         attachments,
         metadata_only=False,
-        user_labels=None,
     ):
         assert metadata_only is True
-        label_maps.append(user_labels)
         return message_ref['id']
 
     with patch(
@@ -763,15 +890,27 @@ def test_parallel_retrieval_preserves_order_and_closes_services():
         )
 
     assert messages == [ref['id'] for ref in message_refs]
-    gmail.list_labels.assert_called_once_with(user_id='me')
-    assert label_maps == [{'INBOX': label.INBOX}] * len(message_refs)
     assert gmail_class.call_args_list == [call(credentials=gmail.creds)] * 3
     assert all(worker.service.close.call_count == 1 for worker in workers)
 
 
+def test_small_retrieval_reuses_current_service():
+    gmail = build_gmail()
+    gmail._build_message_from_ref = MagicMock(
+        side_effect=lambda _user_id, ref, _attachments, **_: ref['id']
+    )
+    message_refs = [{'id': str(i)} for i in range(10)]
+
+    with patch('simplegmail.gmail.Gmail') as gmail_class:
+        messages = Gmail._get_messages_from_refs(gmail, 'me', message_refs)
+
+    assert messages == [ref['id'] for ref in message_refs]
+    assert gmail._build_message_from_ref.call_count == 10
+    gmail_class.assert_not_called()
+
+
 def test_parallel_retrieval_propagates_worker_errors_and_closes_services():
     gmail = build_gmail()
-    gmail.list_labels = MagicMock(return_value=[])
     message_refs = [{'id': str(i)} for i in range(11)]
     workers = []
     error = RuntimeError('download failed')
@@ -781,7 +920,6 @@ def test_parallel_retrieval_propagates_worker_errors_and_closes_services():
         message_ref,
         attachments,
         metadata_only=False,
-        user_labels=None,
     ):
         if message_ref['id'] == '6':
             raise error
