@@ -8,6 +8,7 @@ attachments) and retrieving mail with the full suite of Gmail search options.
 
 import base64
 from concurrent.futures import ThreadPoolExecutor
+from email.message import EmailMessage
 from email.mime.audio       import MIMEAudio
 from email.mime.application import MIMEApplication
 from email.mime.base        import MIMEBase
@@ -200,15 +201,31 @@ class Gmail(object):
             sender, to, subject, msg_html, msg_plain, cc=cc, bcc=bcc,
             attachments=attachments, signature=signature, user_id=user_id
         )
+        return self._send_message(msg, user_id)
 
-        try:
-            req = self.service.users().messages().send(userId='me', body=msg)
-            res = req.execute()
-            return self._build_message_from_ref(user_id, res, 'reference')
+    def send_email_message(
+        self,
+        message: EmailMessage,
+        user_id: str = 'me'
+    ) -> Message:
+        """Sends a standard library EmailMessage.
 
-        except HttpError as error:
-            # Pass along the error
-            raise error
+        Args:
+            message: The fully constructed email message to send.
+            user_id: The address of the sending account. 'me' for the default
+                address associated with the account.
+
+        Returns:
+            The Message object representing the sent message.
+
+        Raises:
+            googleapiclient.errors.HttpError: There was an error executing the
+                HTTP request.
+
+        """
+
+        raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
+        return self._send_message({'raw': raw}, user_id)
 
     def create_draft(
         self,
@@ -1061,6 +1078,13 @@ class Gmail(object):
             return ret
 
         return []
+
+    def _send_message(self, message: dict, user_id: str) -> Message:
+        res = self.service.users().messages().send(
+            userId=user_id,
+            body=message
+        ).execute()
+        return self._build_message_from_ref(user_id, res, 'reference')
 
     def _create_message(
         self,
