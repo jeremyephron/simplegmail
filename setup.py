@@ -12,9 +12,10 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     install_requires=[
         'google-api-python-client>=1.7.3',
+        'google-auth>=2.15.0',
+        'google-auth-oauthlib>=1.0.0',
         'beautifulsoup4>=4.12.1',
         'python-dateutil>=2.8.1',
-        'oauth2client>=4.1.3',
         'lxml>=4.4.2'
     ],
     extras_require={

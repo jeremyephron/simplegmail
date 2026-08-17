@@ -23,11 +23,12 @@ from typing import List, Optional
 
 from bs4 import BeautifulSoup
 import dateutil.parser as parser
+from google.auth.credentials import Credentials as GoogleCredentials
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from httplib2 import Http
-from oauth2client import client, file, tools
-from oauth2client.clientsecrets import InvalidClientSecretsError
 
 from simplegmail import label
 from simplegmail.attachment import Attachment
@@ -45,6 +46,8 @@ class Gmail(object):
             call).
         access_type: Whether to request a refresh token for usage without a
             user necessarily present. Either 'online' or 'offline'.
+        noauth_local_webserver: Whether to suppress opening the authorization
+            URL in a browser. The local callback server is always required.
 
     Attributes:
         client_secret_file (str): The name of the user's client secret file.
@@ -68,56 +71,85 @@ class Gmail(object):
         creds_file: str = 'gmail_token.json',
         access_type: str = 'offline',
         noauth_local_webserver: bool = False,
-        _creds: Optional[client.OAuth2Credentials] = None,
+        _creds: Optional[GoogleCredentials] = None,
     ) -> None:
         self.client_secret_file = client_secret_file
         self.creds_file = creds_file
 
-        try:
-            # The file gmail_token.json stores the user's access and refresh
-            # tokens, and is created automatically when the authorization flow
-            # completes for the first time.
-            if _creds:
-                self.creds = _creds
-            else:
-                store = file.Storage(self.creds_file)
-                self.creds = store.get()
+        if _creds is None:
+            self.creds = self._get_credentials(
+                access_type, noauth_local_webserver
+            )
+        else:
+            self.creds = _creds
 
-            if not self.creds or self.creds.invalid:
-                flow = client.flow_from_clientsecrets(
-                    self.client_secret_file, self._SCOPES
+        self._service = build(
+            'gmail', 'v1', credentials=self.creds, cache_discovery=False
+        )
+
+    def _get_credentials(
+        self,
+        access_type: str,
+        noauth_local_webserver: bool,
+    ) -> Credentials:
+        creds = None
+        if os.path.exists(self.creds_file):
+            try:
+                creds = Credentials.from_authorized_user_file(
+                    self.creds_file, self._SCOPES
+                )
+            except ValueError:
+                pass
+
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+            else:
+                try:
+                    flow = InstalledAppFlow.from_client_secrets_file(
+                        self.client_secret_file, self._SCOPES
+                    )
+                except FileNotFoundError as error:
+                    raise FileNotFoundError(
+                        f"Your client secret file '{self.client_secret_file}' "
+                        "is nonexistent. Follow the setup instructions at "
+                        "https://developers.google.com/gmail/api/quickstart/"
+                        "python."
+                    ) from error
+
+                creds = self._run_auth_flow(
+                    flow, access_type, noauth_local_webserver
                 )
 
-                flow.params['access_type'] = access_type
-                flow.params['prompt'] = 'consent'
+            with open(self.creds_file, 'w') as token:
+                token.write(creds.to_json())
 
-                args = []
-                if noauth_local_webserver:
-                    args.append('--noauth_local_webserver')
+        return creds
 
-                flags = tools.argparser.parse_args(args)
-                self.creds = tools.run_flow(flow, store, flags)
-
-            self._service = build(
-                'gmail', 'v1', http=self.creds.authorize(Http()),
-                cache_discovery=False
-            )
-
-        except InvalidClientSecretsError:
-            raise FileNotFoundError(
-                "Your 'client_secret.json' file is nonexistent. Make sure "
-                "the file is in the root directory of your application. If "
-                "you don't have a client secrets file, go to https://"
-                "developers.google.com/gmail/api/quickstart/python, and "
-                "follow the instructions listed there."
-            )
+    @staticmethod
+    def _run_auth_flow(
+        flow: InstalledAppFlow,
+        access_type: str,
+        noauth_local_webserver: bool,
+    ) -> Credentials:
+        for port in (8080, 8090, 0):
+            try:
+                return flow.run_local_server(
+                    port=port,
+                    open_browser=not noauth_local_webserver,
+                    access_type=access_type,
+                    prompt='consent',
+                )
+            except OSError:
+                if port == 0:
+                    raise
 
     @property
     def service(self) -> 'googleapiclient.discovery.Resource':
         # Since the token is only used through calls to the service object,
         # this ensure that the token is always refreshed before use.
-        if self.creds.access_token_expired:
-            self.creds.refresh(Http())
+        if self.creds.expired:
+            self.creds.refresh(Request())
 
         return self._service
 

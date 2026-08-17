@@ -48,10 +48,7 @@ Gmail and enable.
 
 3. Click on the Credentials tab, then "Create Credentials" > "OAuth client ID".
 
-4. Select what kind of application this is for, and give it a memorable name.
-Fill out all necessary information for the credential (e.g., if choosing 
-"Web Application" make sure to add an Authorized Redirect URI. See 
-https://developers.google.com/identity/protocols/oauth2 for more infomation).
+4. Select "Desktop app" as the application type and give it a memorable name.
 
 5. Back on the credentials screen, click the download icon next to the 
 credential you just created to download it as a JSON object.
@@ -62,11 +59,15 @@ file if you choose to name it otherwise.)
 
 The first time you create a new instance of the `Gmail` class, a browser window 
 will open, and you'll be asked to give permissions to the application. This 
-will save an access token in a file named "gmail-token.json", and only needs to 
+will save an access token in a file named "gmail_token.json", and only needs to
 occur once.
 
-Additionally, you will need to ensure IMAP is enabled in your Gmail account
-settings.
+Existing `oauth2client` token files containing a refresh token are reused and
+rewritten in the current `google-auth` format after they are refreshed.
+
+To print the authorization URL without opening a browser, use
+`Gmail(noauth_local_webserver=True)`. Google no longer supports the old manual
+copy/paste flow, so authorization still redirects to a local callback server.
 
 You are now good to go!
 
