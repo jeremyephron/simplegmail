@@ -124,6 +124,22 @@ params = {
 message = gmail.send_message(**params)  # equivalent to send_message(to="you@youremail.com", sender=...)
 ```
 
+### Create a draft:
+
+```python
+from simplegmail import Gmail
+
+gmail = Gmail()
+
+draft = gmail.create_draft(
+  to="you@youremail.com",
+  sender="me@myemail.com",
+  subject="My first draft",
+  msg_plain="This message is not ready to send yet."
+)
+print(draft["id"])
+```
+
 It couldn't be easier!
 
 ### Retrieving messages:

@@ -226,6 +226,37 @@ def test_service_refreshes_expired_credentials():
     gmail.creds.refresh.assert_called_once_with(request)
 
 
+def test_create_draft_uses_message_builder_and_returns_api_resource():
+    gmail = build_gmail()
+    gmail.creds.expired = False
+    gmail._service = MagicMock()
+    gmail._create_message = MagicMock(return_value={'raw': 'encoded-message'})
+    params = {
+        'sender': 'sender@example.com',
+        'to': 'recipient@example.com',
+        'subject': 'Subject',
+        'msg_html': '<p>HTML</p>',
+        'msg_plain': 'Plain',
+        'cc': ['cc@example.com'],
+        'bcc': ['bcc@example.com'],
+        'attachments': ['attachment.txt'],
+        'signature': True,
+        'user_id': 'account@example.com',
+    }
+    draft = {'id': 'draft-id', 'message': {'id': 'message-id'}}
+    drafts = gmail._service.users.return_value.drafts.return_value
+    drafts.create.return_value.execute.return_value = draft
+
+    result = gmail.create_draft(**params)
+
+    gmail._create_message.assert_called_once_with(**params)
+    drafts.create.assert_called_once_with(
+        userId='account@example.com',
+        body={'message': {'raw': 'encoded-message'}},
+    )
+    assert result is draft
+
+
 def test_html_payload_handles_deeply_nested_content():
     nested = '<div>' * 1000 + 'message' + '</div>' * 1000
     payload = {

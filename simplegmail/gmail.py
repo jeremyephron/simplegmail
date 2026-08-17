@@ -208,6 +208,61 @@ class Gmail(object):
             # Pass along the error
             raise error
 
+    def create_draft(
+        self,
+        sender: str,
+        to: str,
+        subject: str = '',
+        msg_html: Optional[str] = None,
+        msg_plain: Optional[str] = None,
+        cc: Optional[List[str]] = None,
+        bcc: Optional[List[str]] = None,
+        attachments: Optional[List[str]] = None,
+        signature: bool = False,
+        user_id: str = 'me'
+    ) -> dict:
+        """Creates an email draft.
+
+        Args:
+            sender: The email address the message is being sent from.
+            to: The email address the message is being sent to.
+            subject: The subject line of the email.
+            msg_html: The HTML message of the email.
+            msg_plain: The plain text alternate message of the email.
+            cc: The list of email addresses to be cc'd.
+            bcc: The list of email addresses to be bcc'd.
+            attachments: The list of attachment file names.
+            signature: Whether the account signature should be added to the
+                message.
+            user_id: The address of the account creating the draft. 'me' for
+                the default address associated with the account.
+
+        Returns:
+            The draft resource returned by the Gmail API.
+
+        Raises:
+            googleapiclient.errors.HttpError: There was an error executing the
+                HTTP request.
+
+        """
+
+        message = self._create_message(
+            sender=sender,
+            to=to,
+            subject=subject,
+            msg_html=msg_html,
+            msg_plain=msg_plain,
+            cc=cc,
+            bcc=bcc,
+            attachments=attachments,
+            signature=signature,
+            user_id=user_id
+        )
+        return self.service.users().drafts().create(
+            userId=user_id,
+            body={'message': message}
+        ).execute()
+
     def get_unread_inbox(
         self,
         user_id: str = 'me',
