@@ -1,5 +1,7 @@
 import base64
+from email import policy
 from email.message import EmailMessage
+from email.parser import BytesParser
 import json
 from unittest.mock import MagicMock, call, patch
 
@@ -30,6 +32,12 @@ def build_credentials(valid=True, expired=False, refresh_token='refresh'):
     creds.refresh_token = refresh_token
     creds.to_json.return_value = '{"token": "saved"}'
     return creds
+
+
+def parse_message_resource(message_resource):
+    return BytesParser(policy=policy.default).parsebytes(
+        base64.urlsafe_b64decode(message_resource['raw'])
+    )
 
 
 def test_uses_injected_credentials_without_loading_token_file():
@@ -329,6 +337,83 @@ def test_create_draft_uses_message_builder_and_returns_api_resource():
         body={'message': {'raw': 'encoded-message'}},
     )
     assert result is draft
+
+
+@pytest.mark.parametrize(
+    ('msg_plain', 'msg_html', 'content_types'),
+    [
+        ('Plain body', None, ['text/plain']),
+        (None, '<p>HTML body</p>', ['text/html']),
+        (
+            'Plain body',
+            '<p>HTML body</p>',
+            ['text/plain', 'text/html'],
+        ),
+    ],
+)
+def test_create_message_preserves_body_with_attachments(
+    tmp_path, msg_plain, msg_html, content_types
+):
+    attachment = tmp_path / 'attachment.txt'
+    attachment.write_text('Attachment')
+    gmail = build_gmail()
+
+    message = parse_message_resource(gmail._create_message(
+        sender='sender@example.com',
+        to='recipient@example.com',
+        msg_plain=msg_plain,
+        msg_html=msg_html,
+        attachments=[str(attachment)],
+    ))
+
+    assert message.get_content_type() == 'multipart/mixed'
+    body, saved_attachment = message.get_payload()
+    assert body.get_content_type() == 'multipart/alternative'
+    assert [part.get_content_type() for part in body.get_payload()] == (
+        content_types
+    )
+    assert [part.get_content().strip() for part in body.get_payload()] == [
+        content for content in (msg_plain, msg_html) if content
+    ]
+    assert saved_attachment.get_content_disposition() == 'attachment'
+    assert saved_attachment.get_content().strip() == 'Attachment'
+    assert not any(
+        part.get_content_type() == 'multipart/related'
+        for part in message.walk()
+    )
+
+
+def test_create_message_with_only_an_attachment_has_no_empty_body(tmp_path):
+    attachment = tmp_path / 'attachment.txt'
+    attachment.write_text('Attachment')
+    gmail = build_gmail()
+
+    message = parse_message_resource(gmail._create_message(
+        sender='sender@example.com',
+        to='recipient@example.com',
+        attachments=[str(attachment)],
+    ))
+
+    assert message.get_content_type() == 'multipart/mixed'
+    assert len(message.get_payload()) == 1
+    assert message.get_payload(0).get_content_disposition() == 'attachment'
+
+
+def test_create_message_without_attachments_remains_multipart_alternative():
+    gmail = build_gmail()
+
+    message = parse_message_resource(gmail._create_message(
+        sender='sender@example.com',
+        to='recipient@example.com',
+        msg_plain='Plain body',
+        msg_html='<p>HTML body</p>',
+    ))
+
+    assert message.get_content_type() == 'multipart/alternative'
+    assert [part.get_content_type() for part in message.get_payload()] == [
+        'text/plain',
+        'text/html',
+    ]
 
 
 def test_get_messages_passes_metadata_option_to_message_retrieval():
