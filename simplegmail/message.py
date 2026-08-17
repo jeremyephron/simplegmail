@@ -387,6 +387,7 @@ class Message(object):
             raise error
 
         else:
+            res.setdefault('labelIds', [])
             assert all([lbl in res['labelIds'] for lbl in to_add]) \
                 and all([lbl not in res['labelIds'] for lbl in to_remove]), \
                 'An error occurred while modifying message label.'
