@@ -1,3 +1,4 @@
+import base64
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -16,6 +17,24 @@ def build_worker(workers, build_message):
     worker._build_message_from_ref.side_effect = build_message
     workers.append(worker)
     return worker
+
+
+def test_html_payload_handles_deeply_nested_content():
+    nested = '<div>' * 1000 + 'message' + '</div>' * 1000
+    payload = {
+        'mimeType': 'text/html',
+        'body': {
+            'data': base64.urlsafe_b64encode(
+                f'<html><body>{nested}</body></html>'.encode()
+            ).decode()
+        },
+    }
+
+    parts = Gmail.__new__(Gmail)._evaluate_message_payload(
+        payload, 'me', 'message-id'
+    )
+
+    assert parts == [{'part_type': 'html', 'body': f'<body>{nested}</body>'}]
 
 
 def test_parallel_retrieval_preserves_order_and_closes_services():
