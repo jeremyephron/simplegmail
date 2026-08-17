@@ -7,7 +7,7 @@ This module contains the implementation of the Attachment object.
 
 import base64  # for base64.urlsafe_b64decode
 import os      # for os.path.exists
-from typing import Optional
+from typing import Optional, List, Dict
 
 class Attachment(object):
     """
@@ -21,6 +21,7 @@ class Attachment(object):
         att_id: The id of the attachment.
         filename: The filename associated with the attachment.
         filetype: The mime type of the file.
+        headers: The headers of the attachment.
         data: The raw data of the file. Default None.
 
     Attributes:
@@ -30,6 +31,7 @@ class Attachment(object):
         id (str): The id of the attachment.
         filename (str): The filename associated with the attachment.
         filetype (str): The mime type of the file.
+        headers: The headers of the attachment.
         data (bytes): The raw data of the file.
 
     """
@@ -42,6 +44,7 @@ class Attachment(object):
         att_id: str,
         filename: str,
         filetype: str,
+        headers: Optional[List[Dict]],
         data: Optional[bytes] = None
     ) -> None:
         self._service = service
@@ -50,6 +53,7 @@ class Attachment(object):
         self.id = att_id
         self.filename = filename
         self.filetype = filetype
+        self.headers = headers or []
         self.data = data
 
     def download(self) -> None:
