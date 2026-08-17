@@ -1,5 +1,20 @@
 from simplegmail import query
 
+
+BOOLEAN_TERMS = {
+    'starred': 'is:starred',
+    'snoozed': 'is:snoozed',
+    'unread': 'is:unread',
+    'read': 'is:read',
+    'important': 'is:important',
+    'attachment': 'has:attachment',
+    'drive': 'has:drive',
+    'docs': 'has:document',
+    'sheets': 'has:spreadsheet',
+    'slides': 'has:presentation',
+}
+
+
 class TestQuery(object):
 
     def test_and(self):
@@ -73,3 +88,29 @@ class TestQuery(object):
             )
         )
         assert query_string == expect
+
+    def test_boolean_terms_respect_their_values(self):
+        for key, term in BOOLEAN_TERMS.items():
+            assert query.construct_query(**{key: True}) == term
+            assert query.construct_query(**{key: False}) == f'-{term}'
+
+    def test_falsey_non_boolean_terms_are_not_negated(self):
+        assert query.construct_query(subject='') == 'subject:'
+
+    def test_false_boolean_terms_in_or_queries_are_negated(self):
+        query_string = query.construct_query(
+            {'starred': False}, {'attachment': False}
+        )
+        assert query_string == '{-is:starred -has:attachment}'
+
+    def test_false_boolean_terms_combine_with_other_terms(self):
+        query_string = query.construct_query(
+            sender='john@doe.com', starred=False, attachment=True
+        )
+        assert query_string == (
+            '(from:john@doe.com -is:starred has:attachment)'
+        )
+
+    def test_exclude_prefix_still_negates_boolean_terms(self):
+        assert query.construct_query(exclude_starred=True) == '-is:starred'
+        assert query.construct_query(exclude_starred=False) == '-is:starred'
