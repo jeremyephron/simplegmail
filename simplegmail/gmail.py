@@ -7,6 +7,7 @@ attachments) and retrieving mail with the full suite of Gmail search options.
 """
 
 import base64
+from concurrent.futures import ThreadPoolExecutor
 from email.mime.audio       import MIMEAudio
 from email.mime.application import MIMEApplication
 from email.mime.base        import MIMEBase
@@ -18,7 +19,6 @@ import math
 import mimetypes
 import os
 import re
-import threading
 from typing import List, Optional
 
 from bs4 import BeautifulSoup
@@ -699,34 +699,23 @@ class Gmail(object):
             max_num_threads
         )
         batch_size = math.ceil(len(message_refs) / num_threads)
-        message_lists = [None] * num_threads
 
-        def thread_download_batch(thread_num):
+        def download_batch(thread_num):
             gmail = Gmail(_creds=self.creds)
+            try:
+                start = thread_num * batch_size
+                end = min(len(message_refs), (thread_num + 1) * batch_size)
+                return [
+                    gmail._build_message_from_ref(
+                        user_id, message_refs[i], attachments
+                    )
+                    for i in range(start, end)
+                ]
+            finally:
+                gmail.service.close()
 
-            start = thread_num * batch_size
-            end = min(len(message_refs), (thread_num + 1) * batch_size)
-            message_lists[thread_num] = [
-                gmail._build_message_from_ref(
-                    user_id, message_refs[i], attachments
-                )
-                for i in range(start, end)
-            ]
-
-            gmail.service.close()
-
-        threads = [
-            threading.Thread(target=thread_download_batch, args=(i,))
-            for i in range(num_threads)
-        ]
-
-        for t in threads:
-            t.start()
-
-        for t in threads:
-            t.join()
-
-        return sum(message_lists, [])
+        with ThreadPoolExecutor(max_workers=num_threads) as executor:
+            return sum(executor.map(download_batch, range(num_threads)), [])
 
     def _build_message_from_ref(
         self,
