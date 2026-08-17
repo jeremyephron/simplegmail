@@ -130,6 +130,23 @@ params = {
 message = gmail.send_message(**params)  # equivalent to send_message(to="you@youremail.com", sender=...)
 ```
 
+### Send a standard library `EmailMessage`:
+
+```python
+from email.message import EmailMessage
+
+from simplegmail import Gmail
+
+gmail = Gmail()
+message = EmailMessage()
+message['To'] = 'you@youremail.com'
+message['From'] = 'me@myemail.com'
+message['Subject'] = 'An EmailMessage'
+message.set_content("Built with Python's standard email library.")
+
+sent_message = gmail.send_email_message(message)
+```
+
 ### Create a draft:
 
 ```python

@@ -1,8 +1,10 @@
 import base64
+from email.message import EmailMessage
 import json
 from unittest.mock import MagicMock, call, patch
 
 import pytest
+from googleapiclient.errors import HttpError
 
 from simplegmail import label
 from simplegmail.gmail import Gmail
@@ -225,6 +227,77 @@ def test_service_refreshes_expired_credentials():
 
     assert service is gmail._service
     gmail.creds.refresh.assert_called_once_with(request)
+
+
+def test_send_message_uses_existing_builder_and_shared_sender():
+    gmail = build_gmail()
+    message_resource = {'raw': 'encoded-message'}
+    sent_message = object()
+    gmail._create_message = MagicMock(return_value=message_resource)
+    gmail._send_message = MagicMock(return_value=sent_message)
+
+    result = gmail.send_message(
+        sender='sender@example.com',
+        to='recipient@example.com',
+        user_id='account@example.com',
+    )
+
+    gmail._create_message.assert_called_once()
+    gmail._send_message.assert_called_once_with(
+        message_resource, 'account@example.com'
+    )
+    assert result is sent_message
+
+
+def test_send_email_message_encodes_and_sends_mime_message():
+    gmail = build_gmail()
+    gmail.creds.expired = False
+    gmail._service = MagicMock()
+    message_api = gmail._service.users.return_value.messages.return_value
+    message_ref = {'id': 'message-id'}
+    message_api.send.return_value.execute.return_value = message_ref
+    sent_message = object()
+    gmail._build_message_from_ref = MagicMock(return_value=sent_message)
+    message = EmailMessage()
+    message['From'] = 'sender@example.com'
+    message['To'] = 'recipient@example.com'
+    message['Subject'] = 'Subject'
+    message.set_content('Body')
+    message.add_attachment(
+        b'attachment',
+        maintype='application',
+        subtype='octet-stream',
+        filename='attachment.bin',
+    )
+    encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+
+    result = gmail.send_email_message(
+        message, user_id='account@example.com'
+    )
+
+    message_api.send.assert_called_once_with(
+        userId='account@example.com',
+        body={'raw': encoded_message},
+    )
+    gmail._build_message_from_ref.assert_called_once_with(
+        'account@example.com', message_ref, 'reference'
+    )
+    assert result is sent_message
+
+
+def test_send_email_message_propagates_api_errors():
+    gmail = build_gmail()
+    gmail.creds.expired = False
+    gmail._service = MagicMock()
+    response = MagicMock(status=400, reason='Bad Request')
+    error = HttpError(response, b'{}')
+    message_api = gmail._service.users.return_value.messages.return_value
+    message_api.send.return_value.execute.side_effect = error
+
+    with pytest.raises(HttpError) as raised:
+        gmail.send_email_message(EmailMessage())
+
+    assert raised.value is error
 
 
 def test_create_draft_uses_message_builder_and_returns_api_resource():
