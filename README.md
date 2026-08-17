@@ -252,6 +252,8 @@ if message.attachments:
 ### Retrieving messages (advanced, with queries!):
 
 ```python
+from datetime import datetime, timedelta, timezone
+
 from simplegmail import Gmail
 from simplegmail.query import construct_query
 
@@ -277,6 +279,13 @@ messages = gmail.get_messages(query=construct_query(query_params))
 messages = gmail.get_messages(
   query=construct_query(query_params),
   max_results=10
+)
+
+# Gmail's newer_than operator supports days, months, and years. For shorter
+# periods, use a Unix timestamp with after.
+ten_minutes_ago = datetime.now(timezone.utc) - timedelta(minutes=10)
+messages = gmail.get_messages(
+  query=construct_query(after=int(ten_minutes_ago.timestamp()))
 )
 
 # We could have also accomplished this with

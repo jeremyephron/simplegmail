@@ -76,11 +76,15 @@ def construct_query(*query_dicts, **query_terms) -> str:
 
         bcc (str): Recipient in the bcc field. E.g.: bcc='jane@email.com'
 
-        before (str): The message was sent before a date.
+        before (Union[str, int]): The message was sent before a date or Unix
+            timestamp.
             E.g.: before='2004/04/27'
+                  before=1083024000
 
-        after (str): The message was sent after a date.
+        after (Union[str, int]): The message was sent after a date or Unix
+            timestamp.
             E.g.: after='2004/04/27'
+                  after=1083024000
 
         older_than (Tuple[int, str]): The message was sent before a given
             time period.
@@ -419,12 +423,12 @@ def _bcc(recipient: str) -> str:
     return f'bcc:{recipient}'
 
 
-def _after(date: str) -> str:
+def _after(date: Union[str, int]) -> str:
     """
     Returns a query term matching messages sent after a given date.
 
     Args:
-        date: The date messages must be sent after.
+        date: The date or Unix timestamp messages must be sent after.
 
     Returns:
         The query string.
@@ -434,12 +438,12 @@ def _after(date: str) -> str:
     return f'after:{date}'
 
 
-def _before(date: str) -> str:
+def _before(date: Union[str, int]) -> str:
     """
     Returns a query term matching messages sent before a given date.
 
     Args:
-        date: The date messages must be sent before.
+        date: The date or Unix timestamp messages must be sent before.
 
     Returns:
         The query string.

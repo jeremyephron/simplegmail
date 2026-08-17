@@ -97,6 +97,13 @@ class TestQuery(object):
     def test_falsey_non_boolean_terms_are_not_negated(self):
         assert query.construct_query(subject='') == 'subject:'
 
+    def test_date_terms_accept_unix_timestamps(self):
+        query_string = query.construct_query(
+            after=1692211200, before=1692211800
+        )
+
+        assert query_string == '(after:1692211200 before:1692211800)'
+
     def test_false_boolean_terms_in_or_queries_are_negated(self):
         query_string = query.construct_query(
             {'starred': False}, {'attachment': False}
