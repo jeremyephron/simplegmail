@@ -75,6 +75,26 @@ To print the authorization URL without opening a browser, use
 `Gmail(noauth_local_webserver=True)`. Google no longer supports the old manual
 copy/paste flow, so authorization still redirects to a local callback server.
 
+For deployments that store authorized-user JSON in an environment variable or
+secret manager, construct `google-auth` credentials and pass them directly:
+
+```python
+import json
+import os
+
+from google.oauth2.credentials import Credentials
+from simplegmail import Gmail
+
+credentials = Credentials.from_authorized_user_info(
+    json.loads(os.environ['GMAIL_TOKEN'])
+)
+gmail = Gmail(credentials=credentials)
+```
+
+`GMAIL_TOKEN` is an application-defined name containing the JSON stored in
+`gmail_token.json`. Keep OAuth credentials and refresh tokens in secure storage
+and never commit them to source control.
+
 You are now good to go!
 
 Note about authentication method: I have opted not to use a username-password 
