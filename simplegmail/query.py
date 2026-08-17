@@ -40,6 +40,9 @@ def construct_query(*query_dicts, **query_terms) -> str:
     `exclude_labels=[['finance'], ['bills']]`, which negates
     '(finance OR bills)'.
 
+    Boolean terms can also be negated by setting them to False. For example,
+    `starred=False` produces `-is:starred`.
+
     For all keywords whose values are not booleans, you can indicate you'd
     like to "and" multiple values by placing them in a tuple (), or "or"
     multiple values by placing them in a list [].
@@ -184,7 +187,7 @@ def construct_query(*query_dicts, **query_terms) -> str:
         else:
             term = query_fn(val) if not isinstance(val, bool) else query_fn()
 
-        if exclude:
+        if exclude or val is False:
             term = _exclude(term)
 
         terms.append(term)

@@ -17,8 +17,9 @@ setuptools.setup(
         'oauth2client>=4.1.3',
         'lxml>=4.4.2'
     ],
-    setup_requires=["pytest-runner"],
-    tests_require=["pytest"],
+    extras_require={
+        'test': ['pytest'],
+    },
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Programming Language :: Python',
