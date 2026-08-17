@@ -7,7 +7,8 @@ This module contains the implementation of the Message object.
 
 from typing import List, Optional, Union
 
-from httplib2 import Http
+from google.auth.credentials import Credentials
+from google.auth.transport.requests import Request
 from googleapiclient.errors import HttpError
 
 from simplegmail import label
@@ -62,7 +63,7 @@ class Message(object):
     def __init__(
         self,
         service: 'googleapiclient.discovery.Resource',
-        creds: 'oauth2client.client.OAuth2Credentials',
+        creds: Credentials,
         user_id: str,
         msg_id: str,
         thread_id: str,
@@ -99,8 +100,8 @@ class Message(object):
 
     @property
     def service(self) -> 'googleapiclient.discovery.Resource':
-        if self.creds.access_token_expired:
-            self.creds.refresh(Http())
+        if self.creds.expired:
+            self.creds.refresh(Request())
 
         return self._service
 

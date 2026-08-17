@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -58,3 +58,15 @@ def test_missing_label_ids_does_not_hide_failed_addition():
         message.star()
 
     assert message.label_ids == [label.INBOX]
+
+
+def test_service_refreshes_expired_credentials():
+    message, _ = build_message({})
+    message.creds.expired = True
+    request = MagicMock()
+
+    with patch('simplegmail.message.Request', return_value=request):
+        service = message.service
+
+    assert service is message._service
+    message.creds.refresh.assert_called_once_with(request)
