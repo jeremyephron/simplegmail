@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, call, patch
 
 import pytest
 
+from simplegmail import label
 from simplegmail.gmail import Gmail
 
 
@@ -261,16 +262,70 @@ def test_get_messages_passes_metadata_option_to_message_retrieval():
     gmail = build_gmail()
     gmail.creds.expired = False
     gmail._service = MagicMock()
-    refs = [{'id': 'message-id'}]
+    refs = [{'id': 'message-1'}, {'id': 'message-2'}]
     messages = gmail._service.users.return_value.messages.return_value
-    messages.list.return_value.execute.return_value = {'messages': refs}
+    messages.list.return_value.execute.side_effect = [
+        {'messages': refs[:1], 'nextPageToken': 'next'},
+        {'messages': refs[1:]},
+    ]
     gmail._get_messages_from_refs = MagicMock(return_value=[])
 
     gmail.get_messages(metadata_only=True)
 
+    assert messages.list.call_args_list == [
+        call(userId='me', q='', labelIds=[], includeSpamTrash=False),
+        call(
+            userId='me', q='', labelIds=[], includeSpamTrash=False,
+            pageToken='next',
+        ),
+    ]
     gmail._get_messages_from_refs.assert_called_once_with(
         'me', refs, 'reference', metadata_only=True
     )
+
+
+def test_get_messages_limits_results_across_pages():
+    gmail = build_gmail()
+    gmail.creds.expired = False
+    gmail._service = MagicMock()
+    messages = gmail._service.users.return_value.messages.return_value
+    first_page = [{'id': str(i)} for i in range(500)]
+    last_page = [{'id': '500'}]
+    messages.list.return_value.execute.side_effect = [
+        {'messages': first_page, 'nextPageToken': 'next'},
+        {'messages': last_page, 'nextPageToken': 'unused'},
+    ]
+    gmail._get_messages_from_refs = MagicMock(return_value=[])
+
+    gmail.get_messages(max_results=501)
+
+    assert messages.list.call_args_list == [
+        call(
+            userId='me', q='', labelIds=[], includeSpamTrash=False,
+            maxResults=500,
+        ),
+        call(
+            userId='me', q='', labelIds=[], includeSpamTrash=False,
+            maxResults=1, pageToken='next',
+        ),
+    ]
+    gmail._get_messages_from_refs.assert_called_once_with(
+        'me', first_page + last_page, 'reference', metadata_only=False
+    )
+
+
+@pytest.mark.parametrize('max_results', [0, -1, 1.5, '1', True])
+def test_get_messages_rejects_invalid_max_results(max_results):
+    gmail = build_gmail()
+    gmail.creds.expired = False
+    gmail._service = MagicMock()
+
+    with pytest.raises(
+        ValueError, match='max_results must be a positive integer'
+    ):
+        gmail.get_messages(max_results=max_results)
+
+    gmail._service.users.assert_not_called()
 
 
 def test_builds_metadata_message_without_parsing_body():
@@ -317,6 +372,7 @@ def test_full_message_retrieval_remains_the_default():
     messages.get.return_value.execute.return_value = {
         'id': 'message-id',
         'threadId': 'thread-id',
+        'labelIds': ['INBOX'],
         'snippet': 'Snippet',
         'payload': {
             'headers': [],
@@ -326,11 +382,18 @@ def test_full_message_retrieval_remains_the_default():
             },
         },
     }
+    gmail.list_labels = MagicMock()
 
-    message = gmail._build_message_from_ref('me', {'id': 'message-id'})
+    message = gmail._build_message_from_ref(
+        'me',
+        {'id': 'message-id'},
+        user_labels={'INBOX': label.INBOX},
+    )
 
     messages.get.assert_called_once_with(userId='me', id='message-id')
+    gmail.list_labels.assert_not_called()
     assert message.plain == 'Body'
+    assert message.label_ids == [label.INBOX]
 
 
 def test_html_payload_handles_deeply_nested_content():
@@ -353,11 +416,20 @@ def test_html_payload_handles_deeply_nested_content():
 
 def test_parallel_retrieval_preserves_order_and_closes_services():
     gmail = build_gmail()
+    gmail.list_labels = MagicMock(return_value=[label.INBOX])
     message_refs = [{'id': str(i)} for i in range(21)]
     workers = []
+    label_maps = []
 
-    def build_message(user_id, message_ref, attachments, metadata_only=False):
+    def build_message(
+        user_id,
+        message_ref,
+        attachments,
+        metadata_only=False,
+        user_labels=None,
+    ):
         assert metadata_only is True
+        label_maps.append(user_labels)
         return message_ref['id']
 
     with patch(
@@ -373,17 +445,26 @@ def test_parallel_retrieval_preserves_order_and_closes_services():
         )
 
     assert messages == [ref['id'] for ref in message_refs]
+    gmail.list_labels.assert_called_once_with(user_id='me')
+    assert label_maps == [{'INBOX': label.INBOX}] * len(message_refs)
     assert gmail_class.call_count == 3
     assert all(worker.service.close.call_count == 1 for worker in workers)
 
 
 def test_parallel_retrieval_propagates_worker_errors_and_closes_services():
     gmail = build_gmail()
+    gmail.list_labels = MagicMock(return_value=[])
     message_refs = [{'id': str(i)} for i in range(11)]
     workers = []
     error = RuntimeError('download failed')
 
-    def build_message(user_id, message_ref, attachments, metadata_only=False):
+    def build_message(
+        user_id,
+        message_ref,
+        attachments,
+        metadata_only=False,
+        user_labels=None,
+    ):
         if message_ref['id'] == '6':
             raise error
         return message_ref['id']
