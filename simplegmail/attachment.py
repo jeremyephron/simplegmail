@@ -81,8 +81,8 @@ class Attachment(object):
         Saves the attachment. Downloads file data if not downloaded.
         
         Args:
-            filepath: where to save the attachment. Default None, which uses 
-                the filename stored.
+            filepath: File or existing directory where the attachment should
+                be saved. Default None, which uses the stored filename.
             overwrite: whether to overwrite existing files. Default False.
         
         Raises:
@@ -93,6 +93,8 @@ class Attachment(object):
         
         if filepath is None:
             filepath = self.filename
+        elif os.path.isdir(filepath):
+            filepath = os.path.join(filepath, os.path.basename(self.filename))
 
         if self.data is None:
             self.download()
@@ -105,4 +107,3 @@ class Attachment(object):
 
         with open(filepath, 'wb') as f:
             f.write(self.data)
-
