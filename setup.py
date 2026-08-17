@@ -1,4 +1,8 @@
+from pathlib import Path
+
 import setuptools
+
+README = Path(__file__).with_name('README.md').read_text(encoding='utf-8')
 
 setuptools.setup(
     name="simplegmail",
@@ -8,7 +12,7 @@ setuptools.setup(
     author_email="jeremye@cs.stanford.edu",
     description="A simple Python API client for Gmail.",
     license="MIT",
-    long_description=open('README.md').read(),
+    long_description=README,
     long_description_content_type='text/markdown',
     packages=setuptools.find_packages(),
     python_requires='>=3.10',

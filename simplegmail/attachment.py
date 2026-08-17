@@ -6,43 +6,53 @@ This module contains the implementation of the Attachment object.
 """
 
 import base64  # for base64.urlsafe_b64decode
-import os      # for os.path.exists
-from typing import Optional
+import os  # for os.path.exists
 
-class Attachment(object):
+from googleapiclient.discovery import Resource
+
+
+def _decode_base64url(data: str) -> bytes:
+    """Decode base64url data whether or not Gmail includes padding."""
+
+    return base64.urlsafe_b64decode(data + '=' * (-len(data) % 4))
+
+
+class Attachment:
     """
-    The Attachment class for attachments to emails in your Gmail mailbox. This 
-    class should not be manually instantiated.
+    An attachment belonging to a Gmail message.
+
+    Instances are normally created by message retrieval methods rather than
+    constructed directly.
 
     Args:
         service: The Gmail service object.
         user_id: The username of the account the message belongs to.
         msg_id: The id of message the attachment belongs to.
-        att_id: The id of the attachment.
+        att_id: The Gmail attachment ID, if its data is stored separately.
         filename: The filename associated with the attachment.
         filetype: The mime type of the file.
-        data: The raw data of the file. Default None.
+        data: Raw file data, or None until downloaded.
 
     Attributes:
         _service (googleapiclient.discovery.Resource): The Gmail service object.
         user_id (str): The username of the account the message belongs to.
         msg_id (str): The id of message the attachment belongs to.
-        id (str): The id of the attachment.
+        id (str | None): The Gmail attachment ID, when available.
         filename (str): The filename associated with the attachment.
         filetype (str): The mime type of the file.
-        data (bytes): The raw data of the file.
+        data (bytes | None): Raw file data, or None until downloaded.
 
     """
-    
+
     def __init__(
         self,
-        service: 'googleapiclient.discovery.Resource',
+        service: Resource,
         user_id: str,
         msg_id: str,
-        att_id: str,
+        att_id: str | None,
         filename: str,
         filetype: str,
-        data: Optional[bytes] = None
+        data: bytes | None = None
     ) -> None:
         self._service = service
         self.user_id = user_id
@@ -53,15 +63,14 @@ class Attachment(object):
         self.data = data
 
     def download(self) -> None:
-        """
-        Downloads the data for an attachment if it does not exist.
-        
+        """Download the attachment data if it is not already in memory.
+
         Raises:
-            googleapiclient.errors.HttpError: There was an error executing the 
+            googleapiclient.errors.HttpError: There was an error executing the
                 HTTP request.
-        
+
         """
-        
+
         if self.data is not None:
             return
 
@@ -69,41 +78,37 @@ class Attachment(object):
             userId=self.user_id, messageId=self.msg_id, id=self.id
         ).execute()
 
-        data = res['data']
-        self.data = base64.urlsafe_b64decode(data)
+        self.data = _decode_base64url(res['data'])
 
     def save(
         self,
-        filepath: Optional[str] = None,
+        filepath: str | None = None,
         overwrite: bool = False
     ) -> None:
-        """
-        Saves the attachment. Downloads file data if not downloaded.
-        
+        """Save the attachment, downloading it first if necessary.
+
         Args:
             filepath: File or existing directory where the attachment should
                 be saved. Default None, which uses the stored filename.
-            overwrite: whether to overwrite existing files. Default False.
-        
+            overwrite: Whether to overwrite an existing file. Default False.
+
         Raises:
-            FileExistsError: if the call would overwrite an existing file and 
-                overwrite is not set to True.
-        
+            FileExistsError: The destination exists and overwrite is False.
+
         """
-        
         if filepath is None:
             filepath = self.filename
         elif os.path.isdir(filepath):
             filepath = os.path.join(filepath, os.path.basename(self.filename))
-
-        if self.data is None:
-            self.download()
 
         if not overwrite and os.path.exists(filepath):
             raise FileExistsError(
                 f"Cannot overwrite file '{filepath}'. Use overwrite=True if "
                 f"you would like to overwrite the file."
             )
+
+        if self.data is None:
+            self.download()
 
         with open(filepath, 'wb') as f:
             f.write(self.data)

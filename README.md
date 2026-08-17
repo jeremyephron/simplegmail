@@ -1,82 +1,75 @@
 # simplegmail
-[![PyPI Downloads](https://img.shields.io/pypi/dm/simplegmail.svg?label=PyPI%20downloads)](
-https://pypi.org/project/simplegmail/)
 
-A simple Gmail API client in Python for applications.
+[![PyPI downloads](https://img.shields.io/pypi/dm/simplegmail.svg?label=PyPI%20downloads)](https://pypi.org/project/simplegmail/)
 
----
+A small Python client for sending, retrieving, and modifying messages through
+the Gmail API.
 
-Currently Supported Behavior:
-- Sending html messages
-- Sending messages with attachments
-- Sending messages with your Gmail account signature
-- Retrieving messages with the full suite of Gmail's search capabilities
-- Retrieving messages with attachments, and downloading attachments
-- Modifying message labels (includes marking as read/unread, important/not 
-  important, starred/unstarred, trash/untrash, inbox/archive)
+simplegmail supports:
 
-## Table of Contents
+- plain-text and HTML messages;
+- file attachments, Cc, Bcc, aliases, and Gmail signatures;
+- standard-library `EmailMessage` objects, drafts, and threaded replies;
+- Gmail search queries and common inbox filters;
+- lazy or eager attachment downloads; and
+- label changes such as read/unread, star/unstar, archive, spam, and trash.
 
-- [Getting Started](#getting-started)
-- [Installation](#installation)
-- [Usage](#usage)
-    - [Send a simple message](#send-a-simple-message)
-    - [Send a message with attachments, cc, bcc fields](#send-a-message-with-attachments-cc-bcc-fields)
-    - [Retrieving messages](#retrieving-messages)
-    - [Marking messages](#marking-messages)
-    - [Changing message labels](#changing-message-labels)
-    - [Downloading attachments](#downloading-attachments)
-    - [Retrieving messages with queries](#retrieving-messages-advanced-with-queries)
-    - [Retrieving messages with more advanced queries](#retrieving-messages-more-advanced-with-more-queries)
-- [Feedback](#feedback)
+## Requirements and installation
 
-## Getting Started
+simplegmail requires Python 3.10 or newer.
 
-The only setup required is to download an OAuth 2.0 Client ID file from Google
-that will authorize your application.
+```bash
+python -m pip install simplegmail
+```
 
-This can be done at: https://console.developers.google.com/apis/credentials.
-For those who haven't created a credential for Google's API, after clicking the 
-link above (and logging in to the appropriate account),
+## Google OAuth setup
 
-1. Select/create the project that this authentication is for (if creating a new 
-project make sure to configure the OAuth consent screen; you only need to set 
-an Application name)
+Before using the library, create OAuth desktop credentials for a Google Cloud
+project:
 
-2. Click on the "Dashboard" tab, then "Enable APIs and Services". Search for 
-Gmail and enable.
+1. Create or select a project in the
+   [Google Cloud console](https://console.cloud.google.com/).
+2. Enable the Gmail API.
+3. Configure the OAuth consent screen.
+4. Create an OAuth client ID with the application type **Desktop app**.
+5. Download the client JSON as `client_secret.json` into your application
+   directory.
 
-3. Click on the Credentials tab, then "Create Credentials" > "OAuth client ID".
+Google's [Gmail Python quickstart](https://developers.google.com/gmail/api/quickstart/python)
+contains the current console instructions.
 
-4. Select "Desktop app" as the application type and give it a memorable name.
+The first `Gmail()` call opens a browser for authorization and stores the
+result in `gmail_token.json`:
 
-5. Back on the credentials screen, click the download icon next to the 
-credential you just created to download it as a JSON object.
+```python
+from simplegmail import Gmail
 
-6. Save this file as "client_secret.json" and place it in the root directory of 
-your application. (The `Gmail` class takes in an argument for the name of this 
-file if you choose to name it otherwise.)
+gmail = Gmail()
+```
 
-The first time you create a new instance of the `Gmail` class, a browser window 
-will open, and you'll be asked to give permissions to the application. This 
-will save an access token in a file named "gmail_token.json".
+Both paths are configurable:
 
-Google expires authorizations and refresh tokens after seven days while an
-external OAuth project's publishing status is **Testing**. For long-running
-use, change the OAuth consent screen's publishing status to **Production**,
-delete `gmail_token.json`, and authorize again. See Google's
+```python
+gmail = Gmail(
+    client_secret_file="config/client_secret.json",
+    creds_file="config/gmail_token.json",
+)
+```
+
+Treat both files as secrets and never commit them. When an external OAuth app
+has the publishing status **Testing**, Google may expire its authorization and
+refresh token after seven days. For long-running use, change the consent
+screen's publishing status to **Production**, delete the old token file, and
+authorize again. See Google's
 [OAuth audience documentation](https://support.google.com/cloud/answer/15549945)
-for publishing and verification requirements.
+for the applicable requirements.
 
-Existing `oauth2client` token files containing a refresh token are reused and
-rewritten in the current `google-auth` format after they are refreshed.
+`Gmail(noauth_local_webserver=True)` prints the authorization URL instead of
+opening it. Authorization still requires a local callback; Google no longer
+supports the old copy-and-paste flow.
 
-To print the authorization URL without opening a browser, use
-`Gmail(noauth_local_webserver=True)`. Google no longer supports the old manual
-copy/paste flow, so authorization still redirects to a local callback server.
-
-For deployments that store authorized-user JSON in an environment variable or
-secret manager, construct `google-auth` credentials and pass them directly:
+Applications can inject existing `google-auth` credentials and skip file-based
+authentication:
 
 ```python
 import json
@@ -86,322 +79,267 @@ from google.oauth2.credentials import Credentials
 from simplegmail import Gmail
 
 credentials = Credentials.from_authorized_user_info(
-    json.loads(os.environ['GMAIL_TOKEN'])
+    json.loads(os.environ["GMAIL_TOKEN"])
 )
 gmail = Gmail(credentials=credentials)
 ```
 
-`GMAIL_TOKEN` is an application-defined name containing the JSON stored in
-`gmail_token.json`. Keep OAuth credentials and refresh tokens in secure storage
-and never commit them to source control.
+`GMAIL_TOKEN` is an application-defined environment variable containing the
+authorized-user JSON normally stored in `gmail_token.json`.
 
-You are now good to go!
+## Sending messages
 
-Note about authentication method: I have opted not to use a username-password 
-authentication (through imap/smtp), since using Google's authorization is both 
-significantly safer and avoids clashing with Google's many security measures.
-
-## Installation
-
-Python 3.10 or newer is required. Install using `pip`:
-
-```bash
-pip3 install simplegmail
-```
-
-## Usage
-
-### Send a simple message:
-
-```python
-from simplegmail import Gmail
-
-gmail = Gmail() # will open a browser window to ask you to log in and authenticate
-
-params = {
-  "to": "you@youremail.com",
-  "sender": "me@myemail.com",
-  "subject": "My first email",
-  "msg_html": "<h1>Woah, my first email!</h1><br />This is an HTML email.",
-  "msg_plain": "Hi\nThis is a plain text email.",
-  "signature": True  # use my account signature
-}
-message = gmail.send_message(**params)  # equivalent to send_message(to="you@youremail.com", sender=...)
-```
-
-### Send a message with attachments, cc, bcc fields:
+Pass at least `sender` and `to`. A message may contain plain text, HTML, or
+both:
 
 ```python
 from simplegmail import Gmail
 
 gmail = Gmail()
-
-params = {
-  "to": "you@youremail.com",
-  "sender": "me@myemail.com",
-  "cc": ["bob@bobsemail.com"],
-  "bcc": ["marie@gossip.com", "hidden@whereami.com"],
-  "subject": "My first email",
-  "msg_html": "<h1>Woah, my first email!</h1><br />This is an HTML email.",
-  "msg_plain": "Hi\nThis is a plain text email.",
-  "attachments": ["path/to/something/cool.pdf", "path/to/image.jpg", "path/to/script.py"],
-  "signature": True  # use my account signature
-}
-message = gmail.send_message(**params)  # equivalent to send_message(to="you@youremail.com", sender=...)
+message = gmail.send_message(
+    sender="me@example.com",
+    to="you@example.com",
+    subject="Hello",
+    msg_plain="Hello from simplegmail.",
+    msg_html="<p>Hello from <strong>simplegmail</strong>.</p>",
+)
 ```
 
-### Send a standard library `EmailMessage`:
+Add attachments, Cc, Bcc, or the configured Gmail signature as needed:
+
+```python
+message = gmail.send_message(
+    sender="Me <me@example.com>",
+    to="you@example.com",
+    cc=["copy@example.com"],
+    bcc=["hidden@example.com"],
+    subject="Report",
+    msg_plain="The report is attached.",
+    attachments=["reports/report.pdf", "images/chart.png"],
+    signature=True,
+)
+```
+
+Attachment bytes are preserved for all MIME types. The type is inferred from
+the filename and defaults to `application/octet-stream` when unknown.
+
+### Standard-library EmailMessage
+
+For complete MIME control, construct an `EmailMessage` directly:
 
 ```python
 from email.message import EmailMessage
 
 from simplegmail import Gmail
 
-gmail = Gmail()
-message = EmailMessage()
-message['To'] = 'you@youremail.com'
-message['From'] = 'me@myemail.com'
-message['Subject'] = 'An EmailMessage'
-message.set_content("Built with Python's standard email library.")
+email = EmailMessage()
+email["To"] = "you@example.com"
+email["From"] = "me@example.com"
+email["Subject"] = "Custom message"
+email.set_content("Built with Python's email package.")
 
-sent_message = gmail.send_email_message(message)
+sent = Gmail().send_email_message(email)
 ```
 
-### Reply to a message in the same thread:
+### Threaded replies
+
+Use `reply_to` to send a response in the original Gmail thread:
 
 ```python
-from simplegmail import Gmail
-
-gmail = Gmail()
 original = gmail.get_messages(query='subject:"Original subject"')[0]
 
 reply = gmail.send_message(
-    sender='me@myemail.com',
+    sender="me@example.com",
     to=original.sender,
-    msg_plain='Thanks for your message.',
+    msg_plain="Thanks for your message.",
     reply_to=original,
 )
 ```
 
-The original subject is reused automatically because Gmail requires matching
-subjects when adding a reply to an existing thread.
+The original message must have a thread ID and `Message-ID` header. Its subject
+is reused because Gmail requires matching subjects when adding a reply to a
+thread.
 
-### Create a draft:
+### Drafts
+
+`create_draft()` accepts the same content and attachment options as
+`send_message()` and returns the Gmail API draft resource:
 
 ```python
-from simplegmail import Gmail
-
-gmail = Gmail()
-
 draft = gmail.create_draft(
-  to="you@youremail.com",
-  sender="me@myemail.com",
-  subject="My first draft",
-  msg_plain="This message is not ready to send yet."
+    sender="me@example.com",
+    to="you@example.com",
+    subject="Work in progress",
+    msg_plain="This message is not ready yet.",
 )
 print(draft["id"])
 ```
 
-It couldn't be easier!
+## Retrieving messages
 
-### Retrieving messages:
+Convenience methods include `get_unread_inbox()`, `get_starred_messages()`,
+`get_important_messages()`, `get_unread_messages()`, `get_drafts()`,
+`get_sent_messages()`, `get_trash_messages()`, and `get_spam_messages()`.
 
 ```python
-from simplegmail import Gmail
-
-gmail = Gmail()
-
-# Unread messages in your inbox
 messages = gmail.get_unread_inbox()
 
-# Starred messages
-messages = gmail.get_starred_messages()
-
-# Message headers without bodies or attachments
-messages = gmail.get_messages(metadata_only=True)
-print(messages[0].size_estimate)
-
-# ...and many more easy to use functions can be found in gmail.py!
-
-# Print them out!
 for message in messages:
-    print("To: " + message.recipient)
-    print("From: " + message.sender)
-    print("Subject: " + message.subject)
-    print("Date: " + message.date)
-    print("Preview: " + message.snippet)
-    
-    print("Message Body:", message.plain or message.html or "")
+    print("To:", message.recipient)
+    print("From:", message.sender)
+    print("Subject:", message.subject)
+    print("Date:", message.date)
+    print("Preview:", message.snippet)
+    print("Body:", message.plain or message.html or "")
 ```
 
-### Marking messages:
+For full control, use `get_messages()`:
 
 ```python
-from simplegmail import Gmail
-
-gmail = Gmail()
-
-messages = gmail.get_unread_inbox()
-
-message_to_read = messages[0]
-message_to_read.mark_as_read()
-
-# Oops, I want to mark as unread now
-message_to_read.mark_as_unread()
-
-message_to_star = messages[1]
-message_to_star.star()
-
-message_to_trash = messages[2]
-message_to_trash.trash()
-
-# ...and many more functions can be found in message.py!
+messages = gmail.get_messages(
+    labels=["INBOX"],
+    query="is:unread",
+    attachments="reference",
+    include_spam_trash=False,
+    max_results=25,
+)
 ```
 
-### Changing message labels:
+The relevant options are:
+
+| Option | Behavior |
+| --- | --- |
+| `labels` | Requires every supplied `Label` object or label ID. |
+| `query` | Applies a Gmail search query. |
+| `attachments="ignore"` | Omits attachment metadata and data. |
+| `attachments="reference"` | Returns attachment metadata and downloads bytes only when requested. This is the default. |
+| `attachments="download"` | Downloads all attachment bytes while retrieving messages. |
+| `metadata_only=True` | Retrieves headers and size estimates without parsing bodies or attachments. |
+| `max_results=N` | Stops after at most `N` matching messages. |
+| `include_spam_trash=True` | Includes messages in spam and trash. |
+| `user_id` | Selects an account; the default `"me"` means the authenticated account. |
+
+`attachments="download"` retains every downloaded file in memory. Prefer the
+default reference mode for large mailboxes or when only selected files are
+needed.
+
+`Message.label_ids` is a list of Gmail label ID strings. Use `list_labels()`
+when display names or `Label` objects are needed.
+
+## Labels and message state
 
 ```python
-from simplegmail import Gmail
-
-gmail = Gmail()
-
-# Get the label objects for your account. Each label has a specific ID that 
-# you need, not just the name!
 labels = gmail.list_labels()
+finance = next(item for item in labels if item.name == "Finance")
 
-# To find a label by the name that you know (just an example):
-finance_label = list(filter(lambda x: x.name == 'Finance', labels))[0]
-
-messages = gmail.get_unread_inbox()
-
-# We can add/remove a label
-message = messages[0]
-message.add_label(finance_label) 
-
-# We can "move" a message from one label to another
-message.modify_labels(to_add=labels[10], to_remove=finance_label)
-
-# ...check out the code in message.py for more!
+message = gmail.get_unread_inbox()[0]
+message.mark_as_read()
+message.star()
+message.add_label(finance)
+message.modify_labels(to_add="IMPORTANT", to_remove=finance)
+message.archive()
 ```
 
-### Downloading attachments:
+Label mutation methods accept either `Label` objects or Gmail label ID strings.
+Other helpers include `mark_as_unread()`, `unstar()`, `mark_as_spam()`,
+`mark_as_not_spam()`, `mark_as_important()`, `mark_as_not_important()`,
+`move_to_inbox()`, `trash()`, and `untrash()`.
 
-```python
-from simplegmail import Gmail
+## Attachments
 
-gmail = Gmail()
-
-messages = gmail.get_unread_inbox()
-
-message = messages[0]
-if message.attachments:
-    for attm in message.attachments:
-        print('File: ' + attm.filename)
-        attm.save()  # downloads and saves each attachment under its stored
-                     # filename. You can download without saving with `attm.download()`
-
-        # Or save it to an existing directory.
-        # attm.save(filepath='downloads', overwrite=True)
-
-```
-
-With the default `attachments='reference'` mode, attachment data is downloaded
-only when `download()` or `save()` is called, so you can filter attachments
-first. For example, to download only PDFs:
+In the default reference mode, `download()` fetches bytes on demand and
+`save()` downloads if necessary before writing:
 
 ```python
 from pathlib import Path
 
-for message in messages:
-    for attm in message.attachments:
-        if Path(attm.filename).suffix.lower() == '.pdf':
-            attm.save()
+Path("downloads").mkdir(exist_ok=True)
+for message in gmail.get_unread_inbox():
+    for attachment in message.attachments:
+        if Path(attachment.filename).suffix.lower() == ".pdf":
+            attachment.save(filepath="downloads")
 ```
 
-The `spec_attachment` query term filters messages that contain a matching
-attachment; it does not filter the attachments within each message.
+If `filepath` is an existing directory, the stored filename is used safely
+within that directory. If it is a file path, that exact path is used. Existing
+files raise `FileExistsError` unless `overwrite=True` is passed.
 
-### Retrieving messages (advanced, with queries!):
+The `spec_attachment` query term described below filters messages containing a
+matching attachment; it does not filter `message.attachments` after retrieval.
+
+## Search queries
+
+`construct_query()` translates keyword arguments into Gmail search syntax.
+Tuples join values with AND; lists join values with OR. The `labels` term is
+special: a flat list requires all labels, while a nested list expresses
+alternatives.
 
 ```python
 from datetime import datetime, timedelta, timezone
 
-from simplegmail import Gmail
 from simplegmail.query import construct_query
 
-gmail = Gmail()
-
-# Unread messages in inbox with label "Work"
-labels = gmail.list_labels()
-work_label = list(filter(lambda x: x.name == 'Work', labels))[0]
-
-messages = gmail.get_unread_inbox(labels=[work_label])
-
-# For even more control use queries:
-# Messages that are: newer than 2 days old, unread, labeled "Finance" or both "Homework" and "CS"
-query_params = {
-    "newer_than": (2, "day"),
-    "unread": True,
-    "labels":[["Work"], ["Homework", "CS"]]
-}
-
-messages = gmail.get_messages(query=construct_query(query_params))
-
-# Stop after the first 10 matching messages
-messages = gmail.get_messages(
-  query=construct_query(query_params),
-  max_results=10
+query = construct_query(
+    newer_than=(2, "day"),
+    unread=True,
+    labels=[["Finance"], ["Homework", "CS"]],
 )
+messages = gmail.get_messages(query=query, max_results=10)
 
-# Gmail's newer_than operator supports days, months, and years. For shorter
-# periods, use a Unix timestamp with after.
 ten_minutes_ago = datetime.now(timezone.utc) - timedelta(minutes=10)
-messages = gmail.get_messages(
-  query=construct_query(after=int(ten_minutes_ago.timestamp()))
+recent = gmail.get_messages(
+    query=construct_query(after=int(ten_minutes_ago.timestamp()))
 )
-
-# We could have also accomplished this with
-# messages = gmail.get_unread_messages(query=construct_query(newer_than=(2, "day"), labels=[["Work"], ["Homework", "CS"]]))
-# There are many, many different ways of achieving the same result with search.
 ```
 
-### Retrieving messages (more advanced, with more queries!):
+Prefix a keyword with `exclude_` or pass `False` to negate a boolean term:
 
 ```python
-from simplegmail import Gmail
-from simplegmail.query import construct_query
-
-gmail = Gmail()
-
-# For even more control use queries:
-# Messages that are either:
-#   newer than 2 days old, unread, labeled "Finance" or both "Homework" and "CS"
-#     or
-#   newer than 1 month old, unread, labeled "Top Secret", but not starred.
-
-labels = gmail.list_labels()
-
-# Construct our two queries separately
-query_params_1 = {
-    "newer_than": (2, "day"),
-    "unread": True,
-    "labels":[["Finance"], ["Homework", "CS"]]
-}
-
-query_params_2 = {
-    "newer_than": (1, "month"),
-    "unread": True,
-    "labels": ["Top Secret"],
-    "exclude_starred": True
-}
-
-# construct_query() will create both query strings and "or" them together.
-messages = gmail.get_messages(query=construct_query(query_params_1, query_params_2))
+query = construct_query(unread=True, exclude_starred=True)
 ```
 
-For more on what you can do with queries, read the docstring for `construct_query()` in `query.py`.
+Pass multiple dictionaries to OR complete queries:
 
-## Feedback
+```python
+query = construct_query(
+    {"sender": "alerts@example.com", "newer_than": (2, "day")},
+    {"labels": ["Top Secret"], "starred": False},
+)
+messages = gmail.get_messages(query=query)
+```
 
-If there is functionality you'd like to see added, or any bugs in this project,
-please let me know by posting an issue or submitting a pull request!
+Do not mix query dictionaries and keyword terms in one call. Empty sequence
+values and unknown terms raise `ValueError`. See `construct_query()` in
+`simplegmail/query.py` for the complete keyword list.
+
+## Errors and resource cleanup
+
+Google API request failures propagate as `googleapiclient.errors.HttpError`.
+Invalid local arguments raise `ValueError`, and inconsistent label mutation
+responses raise `RuntimeError`.
+
+For a long-lived process, reuse one `Gmail` instance. When finished, its
+underlying HTTP service can be closed explicitly:
+
+```python
+gmail.service.close()
+```
+
+## Upgrading to 5.0
+
+- Python 3.10 or newer is required.
+- Authentication uses `google-auth`; legacy `oauth2client` token files with a
+  refresh token are migrated when refreshed.
+- Browser authorization uses a local callback server; the retired manual
+  copy-and-paste flow is unavailable.
+- `Message.label_ids` consistently contains Gmail label ID strings.
+
+## Development
+
+```bash
+python -m pip install -e '.[test]'
+python -m pytest
+```
+
+Report bugs and request features through
+[GitHub Issues](https://github.com/jeremyephron/simplegmail/issues).

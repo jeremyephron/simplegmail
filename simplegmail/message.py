@@ -5,66 +5,66 @@ This module contains the implementation of the Message object.
 
 """
 
-from typing import List, Optional, Union
-
 from google.auth.credentials import Credentials
 from google.auth.transport.requests import Request
-from googleapiclient.errors import HttpError
+from googleapiclient.discovery import Resource
 
 from simplegmail import label
 from simplegmail.attachment import Attachment
 from simplegmail.label import Label
 
 
-class Message(object):
+class Message:
     """
-    The Message class for emails in your Gmail mailbox. This class should not
-    be manually constructed. Contains all information about the associated
-    message, and can be used to modify the message's labels (e.g., marking as
-    read/unread, archiving, moving to trash, starring, etc.).
+    A Gmail message and operations that modify its state.
+
+    Instances are normally returned by Gmail retrieval and sending methods
+    rather than constructed directly.
 
     Args:
-        service: the Gmail service object.
-        user_id: the username of the account the message belongs to.
-        msg_id: the message id.
-        thread_id: the thread id.
-        recipient: who the message was addressed to.
-        sender: who the message was sent from.
-        subject: the subject line of the message.
-        date: the date the message was sent.
-        snippet: the snippet line for the message.
-        plain: the plaintext contents of the message. Default None.
+        service: The Gmail service object.
+        creds: Credentials used to refresh the service when necessary.
+        user_id: The account the message belongs to.
+        msg_id: The Gmail message ID.
+        thread_id: The Gmail thread ID.
+        recipient: The message's To header.
+        sender: The message's From header.
+        subject: The message subject.
+        date: The parsed message date, or the original value if parsing failed.
+        snippet: The Gmail-generated message preview.
+        plain: The plain-text contents of the message. Default None.
         html: the HTML contents of the message. Default None.
-        label_ids: the ids of labels associated with this message. Default [].
-        attachments: a list of attachments for the message. Default [].
-        headers: a dict of header values. Default {}
-        cc: who the message was cc'd on the message.
-        bcc: who the message was bcc'd on the message.
-        size_estimate: the estimated message size in bytes. Default None.
+        label_ids: Gmail label ID strings associated with the message.
+        attachments: Attachments belonging to the message.
+        headers: Message headers keyed by their original names.
+        cc: Parsed Cc addresses.
+        bcc: Parsed Bcc addresses.
+        size_estimate: The estimated message size in bytes. Default None.
 
     Attributes:
         _service (googleapiclient.discovery.Resource): the Gmail service object.
         user_id (str): the username of the account the message belongs to.
         id (str): the message id.
+        thread_id (str): the Gmail thread ID.
         recipient (str): who the message was addressed to.
         sender (str): who the message was sent from.
         subject (str): the subject line of the message.
         date (str): the date the message was sent.
         snippet (str): the snippet line for the message.
-        plain (str): the plaintext contents of the message.
-        html (str): the HTML contents of the message.
-        label_ids (List[str]): the ids of labels associated with this message.
-        attachments (List[Attachment]): a list of attachments for the message.
+        plain (str | None): the plaintext contents of the message.
+        html (str | None): the HTML contents of the message.
+        label_ids (list[str]): the ids of labels associated with this message.
+        attachments (list[Attachment]): attachments for the message.
         headers (dict): a dict of header values.
-        cc (List[str]): who the message was cc'd on the message.
-        bcc (List[str]): who the message was bcc'd on the message.
-        size_estimate (int): the estimated message size in bytes.
+        cc (list[str]): who the message was cc'd on the message.
+        bcc (list[str]): who the message was bcc'd on the message.
+        size_estimate (int | None): the estimated message size in bytes.
 
     """
 
     def __init__(
         self,
-        service: 'googleapiclient.discovery.Resource',
+        service: Resource,
         creds: Credentials,
         user_id: str,
         msg_id: str,
@@ -73,15 +73,15 @@ class Message(object):
         sender: str,
         subject: str,
         date: str,
-        snippet,
-        plain: Optional[str] = None,
-        html: Optional[str] = None,
-        label_ids: Optional[List[str]] = None,
-        attachments: Optional[List[Attachment]] = None,
-        headers: Optional[dict] = None,
-        cc: Optional[List[str]] = None,
-        bcc: Optional[List[str]] = None,
-        size_estimate: Optional[int] = None
+        snippet: str,
+        plain: str | None = None,
+        html: str | None = None,
+        label_ids: list[str] | None = None,
+        attachments: list[Attachment] | None = None,
+        headers: dict | None = None,
+        cc: list[str] | None = None,
+        bcc: list[str] | None = None,
+        size_estimate: int | None = None
     ) -> None:
         self._service = service
         self.creds = creds
@@ -103,7 +103,7 @@ class Message(object):
         self.size_estimate = size_estimate
 
     @property
-    def service(self) -> 'googleapiclient.discovery.Resource':
+    def service(self) -> Resource:
         if self.creds.expired:
             self.creds.refresh(Request())
 
@@ -239,23 +239,17 @@ class Message(object):
         Raises:
             googleapiclient.errors.HttpError: There was an error executing the
                 HTTP request.
+            RuntimeError: Gmail did not report the message in trash.
 
         """
 
-        try:
-            res = self._service.users().messages().trash(
-                userId=self.user_id, id=self.id,
-            ).execute()
+        res = self.service.users().messages().trash(
+            userId=self.user_id, id=self.id,
+        ).execute()
+        if label.TRASH not in res.get('labelIds', []):
+            raise RuntimeError('An error occurred in a call to `trash`.')
 
-        except HttpError as error:
-            # Pass error along
-            raise error
-
-        else:
-            assert label.TRASH in res['labelIds'], \
-                f'An error occurred in a call to `trash`.'
-
-            self.label_ids = res['labelIds']
+        self.label_ids = res['labelIds']
 
     def untrash(self) -> None:
         """
@@ -264,25 +258,19 @@ class Message(object):
         Raises:
             googleapiclient.errors.HttpError: There was an error executing the
                 HTTP request.
+            RuntimeError: Gmail still reported the message in trash.
 
         """
 
-        try:
-            res = self._service.users().messages().untrash(
-                userId=self.user_id, id=self.id,
-            ).execute()
+        res = self.service.users().messages().untrash(
+            userId=self.user_id, id=self.id,
+        ).execute()
+        if label.TRASH in res.get('labelIds', []):
+            raise RuntimeError('An error occurred in a call to `untrash`.')
 
-        except HttpError as error:
-            # Pass error along
-            raise error
+        self.label_ids = res.get('labelIds', [])
 
-        else:
-            assert label.TRASH not in res['labelIds'], \
-                f'An error occurred in a call to `untrash`.'
-
-            self.label_ids = res['labelIds']
-
-    def move_from_inbox(self, to: Union[Label, str]) -> None:
+    def move_from_inbox(self, to: Label | str) -> None:
         """
         Moves a message from your inbox to another label "folder".
 
@@ -292,12 +280,13 @@ class Message(object):
         Raises:
             googleapiclient.errors.HttpError: There was an error executing the
                 HTTP request.
+            RuntimeError: Gmail returned labels inconsistent with the request.
 
         """
 
         self.modify_labels(to, label.INBOX)
 
-    def add_label(self, to_add: Union[Label, str]) -> None:
+    def add_label(self, to_add: Label | str) -> None:
         """
         Adds the given label to the message.
 
@@ -312,7 +301,7 @@ class Message(object):
 
         self.add_labels([to_add])
 
-    def add_labels(self, to_add: Union[List[Label], List[str]]) -> None:
+    def add_labels(self, to_add: list[Label] | list[str]) -> None:
         """
         Adds the given labels to the message.
 
@@ -327,7 +316,7 @@ class Message(object):
 
         self.modify_labels(to_add, [])
 
-    def remove_label(self, to_remove: Union[Label, str]) -> None:
+    def remove_label(self, to_remove: Label | str) -> None:
         """
         Removes the given label from the message.
 
@@ -342,7 +331,7 @@ class Message(object):
 
         self.remove_labels([to_remove])
 
-    def remove_labels(self, to_remove: Union[List[Label], List[str]]) -> None:
+    def remove_labels(self, to_remove: list[Label] | list[str]) -> None:
         """
         Removes the given labels from the message.
 
@@ -359,8 +348,8 @@ class Message(object):
 
     def modify_labels(
         self,
-        to_add: Union[Label, str, List[Label], List[str]],
-        to_remove: Union[Label, str, List[Label], List[str]]
+        to_add: Label | str | list[Label] | list[str],
+        to_remove: Label | str | list[Label] | list[str]
     ) -> None:
         """
         Adds or removes the specified label.
@@ -372,6 +361,7 @@ class Message(object):
         Raises:
             googleapiclient.errors.HttpError: There was an error executing the
                 HTTP request.
+            RuntimeError: Gmail returned labels inconsistent with the request.
 
         """
 
@@ -381,28 +371,29 @@ class Message(object):
         if isinstance(to_remove, (Label, str)):
             to_remove = [to_remove]
 
-        try:
-            res = self._service.users().messages().modify(
-                userId=self.user_id, id=self.id,
-                body=self._create_update_labels(to_add, to_remove)
-            ).execute()
+        body = self._create_update_labels(to_add, to_remove)
+        res = self.service.users().messages().modify(
+            userId=self.user_id, id=self.id,
+            body=body,
+        ).execute()
 
-        except HttpError as error:
-            # Pass along error
-            raise error
-
-        else:
-            res.setdefault('labelIds', [])
-            assert all([lbl in res['labelIds'] for lbl in to_add]) \
-                and all([lbl not in res['labelIds'] for lbl in to_remove]), \
+        label_ids = res.get('labelIds', [])
+        if (
+            not all(lbl in label_ids for lbl in body['addLabelIds'])
+            or not all(
+                    lbl not in label_ids for lbl in body['removeLabelIds']
+            )
+        ):
+            raise RuntimeError(
                 'An error occurred while modifying message label.'
+            )
 
-            self.label_ids = res['labelIds']
+        self.label_ids = label_ids
 
     def _create_update_labels(
         self,
-        to_add: Union[List[Label], List[str]] = None,
-        to_remove: Union[List[Label], List[str]] = None
+        to_add: list[Label] | list[str] | None = None,
+        to_remove: list[Label] | list[str] | None = None
     ) -> dict:
         """
         Creates an object for updating message label.

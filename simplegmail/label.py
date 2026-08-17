@@ -7,12 +7,10 @@ Gmail reserved system labels and the Label class.
 
 
 class Label:
-    """
-    A Gmail label object.
+    """A Gmail label.
 
-    This class should not typically be constructed directly but rather returned 
-    from Gmail.list_labels().
-    
+    Instances are normally returned by ``Gmail.list_labels()``.
+
     Args:
         name: The name of the Label.
         id: The ID of the label.

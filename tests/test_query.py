@@ -1,3 +1,5 @@
+import pytest
+
 from simplegmail import query
 
 
@@ -121,3 +123,31 @@ class TestQuery(object):
     def test_exclude_prefix_still_negates_boolean_terms(self):
         assert query.construct_query(exclude_starred=True) == '-is:starred'
         assert query.construct_query(exclude_starred=False) == '-is:starred'
+
+    def test_empty_query_is_empty(self):
+        assert query.construct_query() == ''
+
+    def test_rejects_mixed_query_styles(self):
+        with pytest.raises(ValueError, match='either query dictionaries'):
+            query.construct_query({'starred': True}, unread=True)
+
+    def test_rejects_unknown_terms(self):
+        with pytest.raises(ValueError, match='Unknown query term'):
+            query.construct_query(unknown='value')
+
+    @pytest.mark.parametrize(
+        ('term', 'value'),
+        [('starred', 'yes'), ('subject', True)],
+    )
+    def test_rejects_incorrect_boolean_values(self, term, value):
+        with pytest.raises(ValueError, match='boolean'):
+            query.construct_query(**{term: value})
+
+    def test_rejects_invalid_relative_time_unit(self):
+        with pytest.raises(ValueError, match='day, month, or year'):
+            query.construct_query(newer_than=(1, 'week'))
+
+    @pytest.mark.parametrize('value', [[], ()])
+    def test_rejects_empty_sequence_values(self, value):
+        with pytest.raises(ValueError, match='cannot be empty'):
+            query.construct_query(labels=value)
