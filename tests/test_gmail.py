@@ -44,11 +44,13 @@ def test_uses_injected_credentials_without_loading_token_file():
     creds = build_credentials()
     service = MagicMock()
 
-    with patch('simplegmail.gmail.build', return_value=service) as build:
-        gmail = Gmail(_creds=creds)
+    with patch.object(Gmail, '_get_credentials') as load:
+        with patch('simplegmail.gmail.build', return_value=service) as build:
+            gmail = Gmail(credentials=creds)
 
     assert gmail.creds is creds
     assert gmail.service is service
+    load.assert_not_called()
     build.assert_called_once_with(
         'gmail', 'v1', credentials=creds, cache_discovery=False
     )
@@ -605,7 +607,7 @@ def test_parallel_retrieval_preserves_order_and_closes_services():
     assert messages == [ref['id'] for ref in message_refs]
     gmail.list_labels.assert_called_once_with(user_id='me')
     assert label_maps == [{'INBOX': label.INBOX}] * len(message_refs)
-    assert gmail_class.call_count == 3
+    assert gmail_class.call_args_list == [call(credentials=gmail.creds)] * 3
     assert all(worker.service.close.call_count == 1 for worker in workers)
 
 

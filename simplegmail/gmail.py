@@ -49,6 +49,8 @@ class Gmail(object):
             user necessarily present. Either 'online' or 'offline'.
         noauth_local_webserver: Whether to suppress opening the authorization
             URL in a browser. The local callback server is always required.
+        credentials: Existing google-auth credentials. When provided, file-based
+            authentication is skipped.
 
     Attributes:
         client_secret_file (str): The name of the user's client secret file.
@@ -74,17 +76,17 @@ class Gmail(object):
         creds_file: str = 'gmail_token.json',
         access_type: str = 'offline',
         noauth_local_webserver: bool = False,
-        _creds: Optional[GoogleCredentials] = None,
+        credentials: Optional[GoogleCredentials] = None,
     ) -> None:
         self.client_secret_file = client_secret_file
         self.creds_file = creds_file
 
-        if _creds is None:
+        if credentials is None:
             self.creds = self._get_credentials(
                 access_type, noauth_local_webserver
             )
         else:
-            self.creds = _creds
+            self.creds = credentials
 
         self._service = build(
             'gmail', 'v1', credentials=self.creds, cache_discovery=False
@@ -842,7 +844,7 @@ class Gmail(object):
         batch_size = math.ceil(len(message_refs) / num_threads)
 
         def download_batch(thread_num):
-            gmail = Gmail(_creds=self.creds)
+            gmail = Gmail(credentials=self.creds)
             try:
                 start = thread_num * batch_size
                 end = min(len(message_refs), (thread_num + 1) * batch_size)
