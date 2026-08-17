@@ -60,6 +60,8 @@ class Gmail(object):
         'https://www.googleapis.com/auth/gmail.modify',
         'https://www.googleapis.com/auth/gmail.settings.basic'
     ]
+    # Gmail's users.messages.list API allows at most 500 results per page.
+    _MAX_MESSAGES_PER_PAGE = 500
 
     # If you don't have a client secret file, follow the instructions at:
     # https://developers.google.com/gmail/api/quickstart/python
@@ -575,7 +577,8 @@ class Gmail(object):
         query: str = '',
         attachments: str = 'reference',
         include_spam_trash: bool = False,
-        metadata_only: bool = False
+        metadata_only: bool = False,
+        max_results: Optional[int] = None
     ) -> List[Message]:
         """
         Gets messages from your account.
@@ -593,11 +596,14 @@ class Gmail(object):
             include_spam_trash: whether to include messages from spam or trash.
             metadata_only: whether to retrieve headers without message bodies
                 or attachments. Default False.
+            max_results: the maximum total number of messages to retrieve.
+                Default None, which retrieves every matching message.
 
         Returns:
             A list of message objects.
 
         Raises:
+            ValueError: `max_results` is not a positive integer.
             googleapiclient.errors.HttpError: There was an error executing the
                 HTTP request.
 
@@ -605,34 +611,48 @@ class Gmail(object):
 
         if labels is None:
             labels = []
+        if max_results is not None and (
+            isinstance(max_results, bool)
+            or not isinstance(max_results, int)
+            or max_results < 1
+        ):
+            raise ValueError('max_results must be a positive integer')
 
         labels_ids = [
             lbl.id if isinstance(lbl, Label) else lbl for lbl in labels
         ]
+        list_params = {
+            'userId': user_id,
+            'q': query,
+            'labelIds': labels_ids,
+            'includeSpamTrash': include_spam_trash,
+        }
+        if max_results is not None:
+            list_params['maxResults'] = min(
+                max_results, self._MAX_MESSAGES_PER_PAGE
+            )
 
         try:
             response = self.service.users().messages().list(
-                userId=user_id,
-                q=query,
-                labelIds=labels_ids,
-                includeSpamTrash=include_spam_trash
+                **list_params
             ).execute()
 
-            message_refs = []
-            if 'messages' in response:  # ensure request was successful
-                message_refs.extend(response['messages'])
+            message_refs = list(response.get('messages', []))
 
-            while 'nextPageToken' in response:
-                page_token = response['nextPageToken']
+            while response.get('nextPageToken') and (
+                max_results is None or len(message_refs) < max_results
+            ):
+                list_params['pageToken'] = response['nextPageToken']
+                if max_results is not None:
+                    list_params['maxResults'] = min(
+                        max_results - len(message_refs),
+                        self._MAX_MESSAGES_PER_PAGE
+                    )
                 response = self.service.users().messages().list(
-                    userId=user_id,
-                    q=query,
-                    labelIds=labels_ids,
-                    includeSpamTrash=include_spam_trash,
-                    pageToken=page_token
+                    **list_params
                 ).execute()
 
-                message_refs.extend(response['messages'])
+                message_refs.extend(response.get('messages', []))
 
             return self._get_messages_from_refs(
                 user_id,
@@ -785,9 +805,15 @@ class Gmail(object):
         if not message_refs:
             return []
 
+        user_labels = {
+            lbl.id: lbl for lbl in self.list_labels(user_id=user_id)
+        }
+
         if not parallel:
             return [self._build_message_from_ref(
-                        user_id, ref, attachments, metadata_only=metadata_only)
+                        user_id, ref, attachments,
+                        metadata_only=metadata_only,
+                        user_labels=user_labels)
                     for ref in message_refs]
 
         max_num_threads = 12  # empirically chosen, prevents throttling
@@ -808,7 +834,8 @@ class Gmail(object):
                         user_id,
                         message_refs[i],
                         attachments,
-                        metadata_only=metadata_only
+                        metadata_only=metadata_only,
+                        user_labels=user_labels
                     )
                     for i in range(start, end)
                 ]
@@ -823,7 +850,8 @@ class Gmail(object):
         user_id: str,
         message_ref: dict,
         attachments: str = 'reference',
-        metadata_only: bool = False
+        metadata_only: bool = False,
+        user_labels: Optional[dict] = None
     ) -> Message:
         """
         Creates a Message object from a reference.
@@ -839,6 +867,7 @@ class Gmail(object):
                 'reference'.
             metadata_only: Whether to retrieve headers without message bodies
                 or attachments. Default False.
+            user_labels: Labels keyed by ID. Loaded if not provided.
 
         Returns:
             The Message object.
@@ -867,7 +896,10 @@ class Gmail(object):
             thread_id = message['threadId']
             label_ids = []
             if 'labelIds' in message:
-                user_labels = {x.id: x for x in self.list_labels(user_id=user_id)}
+                if user_labels is None:
+                    user_labels = {
+                        x.id: x for x in self.list_labels(user_id=user_id)
+                    }
                 label_ids = [user_labels[x] for x in message['labelIds']]
             snippet = html.unescape(message.get('snippet', ''))
 

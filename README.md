@@ -270,6 +270,12 @@ query_params = {
 
 messages = gmail.get_messages(query=construct_query(query_params))
 
+# Stop after the first 10 matching messages
+messages = gmail.get_messages(
+  query=construct_query(query_params),
+  max_results=10
+)
+
 # We could have also accomplished this with
 # messages = gmail.get_unread_messages(query=construct_query(newer_than=(2, "day"), labels=[["Work"], ["Homework", "CS"]]))
 # There are many, many different ways of achieving the same result with search.
